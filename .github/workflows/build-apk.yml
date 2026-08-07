@@ -19,14 +19,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Install Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Generate Gradle wrapper (if missing)
         run: |
           if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "gradle-wrapper.jar not found, downloading matching wrapper jar..."
-            GRADLE_VERSION=$(grep -oP '(?<=gradle-)[0-9.]+(?=-bin.zip)' gradle/wrapper/gradle-wrapper.properties)
-            echo "Detected Gradle version: $GRADLE_VERSION"
-            curl -L -o gradle/wrapper/gradle-wrapper.jar \
-              "https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar"
+            echo "gradle-wrapper.jar not found, generating it with Gradle 8.7..."
+            gradle wrapper --gradle-version 8.7
           fi
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
