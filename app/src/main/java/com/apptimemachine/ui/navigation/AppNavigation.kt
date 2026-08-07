@@ -28,17 +28,16 @@ import com.apptimemachine.ui.timeline.TimelineScreen
 
 /**
  * Part 1.4A Navigation: "No Navigation Drawer. Everything should be
- * reachable using Bottom Navigation and Top App Bar" — exactly five
- * bottom-nav destinations (Dashboard/Timeline/Apps/Reports/Settings per
- * Part 1.2 spec), with Details/Search/Compare/Statistics/Backup pushed on
- * top as regular back-stack entries reachable from Dashboard Quick Actions
- * or contextual taps (Part 1.4A Navigation Flow).
+ * reachable using Bottom Navigation and Top App Bar" — exactly four
+ * bottom-nav destinations (Dashboard/Timeline/Apps/Settings), with
+ * Reports/Details/Search/Compare/Statistics/Backup pushed on top as
+ * regular back-stack entries reachable from Dashboard Quick Actions,
+ * Settings, or contextual taps (Part 1.4A Navigation Flow).
  */
 private sealed class TopLevelDestination(val route: String, val label: String, val icon: ImageVector) {
     data object Dashboard : TopLevelDestination("dashboard", "Dashboard", Icons.Default.Dashboard)
     data object Timeline : TopLevelDestination("timeline", "Timeline", Icons.Default.History)
     data object Apps : TopLevelDestination("apps", "Apps", Icons.Default.Apps)
-    data object Reports : TopLevelDestination("reports", "Reports", Icons.Default.Description)
     data object Settings : TopLevelDestination("settings", "Settings", Icons.Default.Settings)
 }
 
@@ -46,7 +45,6 @@ private val bottomNavItems = listOf(
     TopLevelDestination.Dashboard,
     TopLevelDestination.Timeline,
     TopLevelDestination.Apps,
-    TopLevelDestination.Reports,
     TopLevelDestination.Settings
 )
 
@@ -55,6 +53,7 @@ private const val ROUTE_SEARCH = "search"
 private const val ROUTE_STATISTICS = "statistics"
 private const val ROUTE_COMPARE = "compare"
 private const val ROUTE_BACKUP = "backup"
+private const val ROUTE_REPORTS = "reports"
 
 @Composable
 fun AppNavigation() {
@@ -83,8 +82,12 @@ fun AppNavigation() {
             composable(TopLevelDestination.Apps.route) {
                 AppsListScreen(onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") })
             }
-            composable(TopLevelDestination.Reports.route) { ReportsScreen() }
-            composable(TopLevelDestination.Settings.route) { SettingsScreen() }
+            composable(TopLevelDestination.Settings.route) {
+                SettingsScreen(onOpenReports = { navController.navigate(ROUTE_REPORTS) })
+            }
+            composable(ROUTE_REPORTS) {
+                ReportsScreen(onBack = { navController.popBackStack() })
+            }
 
             composable(
                 route = ROUTE_APP_DETAILS,
@@ -112,7 +115,7 @@ private fun AppBottomBar(navController: NavHostController) {
     val currentDestination = navBackStackEntry?.destination
 
     // Hide bottom bar on detail/nested screens (Part 1.4A: bottom nav is
-    // for the five top-level destinations only).
+    // for the four top-level destinations only).
     val isTopLevel = bottomNavItems.any { item ->
         currentDestination?.hierarchy?.any { it.route == item.route } == true
     }
