@@ -13,14 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.apptimemachine.core.utils.Formatters
 import com.apptimemachine.data.entities.InstalledAppEntity
+import com.apptimemachine.ui.components.AppIcon
 import com.apptimemachine.ui.components.AtmCard
 import com.apptimemachine.ui.components.EmptyState
 
@@ -70,7 +68,7 @@ fun AppsListScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(state.apps, key = { it.appId }) { app ->
+            items(state.apps, key = { it.appId }, contentType = { "app_row" }) { app ->
                 AppRow(
                     app = app,
                     onClick = { onOpenAppDetails(app.appId) },
@@ -83,14 +81,9 @@ fun AppsListScreen(
 
 @Composable
 private fun AppRow(app: InstalledAppEntity, onClick: () -> Unit, onFavoriteClick: () -> Unit) {
-    val context = LocalContext.current
     AtmCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = ImageRequest.Builder(context).data("package:${app.packageName}").build(),
-                contentDescription = null,
-                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
-            )
+            AppIcon(packageName = app.packageName, size = 44.dp)
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(app.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
