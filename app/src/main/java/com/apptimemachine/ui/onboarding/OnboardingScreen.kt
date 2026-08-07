@@ -129,7 +129,7 @@ private fun PermissionsPage(onNext: () -> Unit) {
         Text("Before you begin", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "App Time Machine cannot reconstruct events that occurred before monitoring started. Some information depends on the permissions you grant.",
+            "Demoniter cannot reconstruct events that occurred before monitoring started. Some information depends on the permissions you grant.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
