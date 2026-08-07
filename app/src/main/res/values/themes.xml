@@ -6,5 +6,15 @@
         <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
     </style>
 
-    <style name="Theme.AppTimeMachine.Splash" parent="Theme.AppTimeMachine" />
+    <!-- Branded system splash (Android 12+ SplashScreen API, set as the
+         launch theme in the manifest and consumed via
+         installSplashScreen() in MainActivity). Brand-indigo background,
+         white clock glyph, "Demoniter" as the window background icon —
+         replaces what was previously a blank system-default flash. -->
+    <style name="Theme.AppTimeMachine.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/seed_primary</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/seed_primary</item>
+        <item name="postSplashScreenTheme">@style/Theme.AppTimeMachine</item>
+    </style>
 </resources>

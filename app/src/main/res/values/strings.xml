@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">App Time Machine</string>
+    <string name="app_name">Demoniter</string>
     <string name="app_tagline">Your App History Starts Today</string>
 
     <!-- Onboarding -->
@@ -23,7 +23,7 @@
 
     <!-- Limitations -->
     <string name="limitations_title">Before you begin</string>
-    <string name="limitations_body">App Time Machine cannot reconstruct events that occurred before monitoring started. History begins after setup is completed. Some information depends on your Android version and the permissions you grant.</string>
+    <string name="limitations_body">Demoniter cannot reconstruct events that occurred before monitoring started. History begins after setup is completed. Some information depends on your Android version and the permissions you grant.</string>
 
     <!-- Privacy -->
     <string name="privacy_statement">No monitoring data is uploaded automatically.</string>
@@ -32,7 +32,7 @@
     <string name="permission_usage_access_title">Usage Access</string>
     <string name="permission_usage_access_desc">Needed to measure how long and how often you use each app.</string>
     <string name="permission_notification_title">Notification Listener</string>
-    <string name="permission_notification_desc">Optional — lets App Time Machine record when notifications arrive.</string>
+    <string name="permission_notification_desc">Optional — lets Demoniter record when notifications arrive.</string>
     <string name="permission_battery_title">Battery Optimization Exception</string>
     <string name="permission_battery_desc">Optional — helps background scans run reliably.</string>
 
