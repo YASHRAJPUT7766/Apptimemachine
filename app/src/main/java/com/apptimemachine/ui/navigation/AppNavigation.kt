@@ -48,6 +48,22 @@ private val bottomNavItems = listOf(
     TopLevelDestination.Settings
 )
 
+// Shared by the bottom bar AND any in-screen shortcut (e.g. Dashboard's
+// Quick Actions) that jumps to a top-level destination. Using plain
+// navController.navigate(route) for these (as Dashboard's onOpenTimeline/
+// onOpenApps/onOpenSettings previously did) stacks a new back-stack entry
+// on every tap instead of reusing/restoring the existing one, so tapping
+// the destination's own bottom-nav tab afterward doesn't return you to
+// Dashboard — this popUpTo/launchSingleTop/restoreState combo keeps a
+// single instance of each top-level destination in the back stack.
+private fun NavHostController.navigateToTopLevel(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 private const val ROUTE_APP_DETAILS = "app_details/{appId}"
 private const val ROUTE_SEARCH = "search"
 private const val ROUTE_STATISTICS = "statistics"
@@ -69,9 +85,9 @@ fun AppNavigation() {
         ) {
             composable(TopLevelDestination.Dashboard.route) {
                 DashboardScreen(
-                    onOpenTimeline = { navController.navigate(TopLevelDestination.Timeline.route) },
-                    onOpenApps = { navController.navigate(TopLevelDestination.Apps.route) },
-                    onOpenSettings = { navController.navigate(TopLevelDestination.Settings.route) },
+                    onOpenTimeline = { navController.navigateToTopLevel(TopLevelDestination.Timeline.route) },
+                    onOpenApps = { navController.navigateToTopLevel(TopLevelDestination.Apps.route) },
+                    onOpenSettings = { navController.navigateToTopLevel(TopLevelDestination.Settings.route) },
                     onOpenSearch = { navController.navigate(ROUTE_SEARCH) },
                     onOpenStatistics = { navController.navigate(ROUTE_STATISTICS) },
                     onOpenCompare = { navController.navigate(ROUTE_COMPARE) },
@@ -129,11 +145,7 @@ private fun AppBottomBar(navController: NavHostController) {
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    navController.navigateToTopLevel(destination.route)
                 },
                 icon = { Icon(destination.icon, contentDescription = destination.label) },
                 label = { Text(destination.label) }
