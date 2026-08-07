@@ -14,7 +14,10 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val theme: AppTheme = AppTheme.SYSTEM,
-    val dynamicColor: Boolean = true,
+    // Matches the real DataStore default (UserPreferences.dynamicColorEnabled
+    // falls back to false) so the Settings toggle doesn't flash "on" for a
+    // frame before flipping to "off" once the real value loads.
+    val dynamicColor: Boolean = false,
     val amoledMode: Boolean = false,
     val monitoringEnabled: Boolean = false,
     val quickScanInterval: ScanInterval = ScanInterval.THIRTY_MIN,
