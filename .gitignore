@@ -1,0 +1,58 @@
+### Signing / secrets — NEVER commit these ###
+keystore.properties
+keystore/
+*.jks
+*.keystore
+
+### Gradle ###
+.gradle/
+build/
+app/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+### Local config ###
+local.properties
+
+### Android Studio / IntelliJ ###
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+### Android ###
+*.apk
+*.aab
+*.ap_
+*.dex
+bin/
+gen/
+out/
+
+### Log files ###
+*.log
+
+### OS ###
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+### VS Code ###
+.vscode/
+
+### Kotlin ###
+.kotlin/
+
+### Misc ###
+*.hprof
+.cache/
+
