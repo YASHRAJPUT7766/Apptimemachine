@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -23,26 +24,38 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * Part 3.4 Application Startup Flow: Splash -> init -> onboarding (first
  * launch) or resume monitoring -> Dashboard. The splash step itself is
- * handled by the system splash screen API (see themes.xml); this Activity
- * picks Onboarding vs the main NavHost based on persisted state.
+ * handled by the system splash screen API (see themes.xml, Theme.AppTimeMachine.Splash) —
+ * installSplashScreen() here keeps the branded splash on-screen until the
+ * onboarding-completed flag has actually been read from DataStore, so we
+ * never flash an unbranded blank screen or a bare loading spinner between
+ * the splash and the first real screen.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        var isReady = false
+        splashScreen.setKeepOnScreenCondition { !isReady }
+
         enableEdgeToEdge()
         setContent {
-            RootContent()
+            RootContent(onReady = { isReady = true })
         }
     }
 }
 
 @Composable
-private fun RootContent(viewModel: RootViewModel = hiltViewModel()) {
+private fun RootContent(onReady: () -> Unit, viewModel: RootViewModel = hiltViewModel()) {
     val theme by viewModel.theme.collectAsState(initial = AppTheme.SYSTEM)
-    val dynamicColor by viewModel.dynamicColor.collectAsState(initial = true)
+    val dynamicColor by viewModel.dynamicColor.collectAsState(initial = false)
     val amoledMode by viewModel.amoledMode.collectAsState(initial = false)
     val onboardingState by viewModel.onboardingCompleted.collectAsState(initial = null)
+
+    androidx.compose.runtime.LaunchedEffect(onboardingState) {
+        if (onboardingState != null) onReady()
+    }
 
     AppTimeMachineTheme(
         darkTheme = when (theme) {
