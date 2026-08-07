@@ -59,7 +59,11 @@ class UserPreferences @Inject constructor(
         dataStore.edit { it[Keys.THEME] = theme.name }
     }
 
-    val dynamicColorEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DYNAMIC_COLOR] ?: true }
+    // Defaults to false so the app's designed indigo/purple brand palette
+    // shows on first install, instead of Android's per-wallpaper Material
+    // You tint (which was making Home look inconsistent/off-brand out of
+    // the box). Still user-toggleable in Settings > Appearance.
+    val dynamicColorEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DYNAMIC_COLOR] ?: false }
     suspend fun setDynamicColorEnabled(enabled: Boolean) {
         dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
     }
