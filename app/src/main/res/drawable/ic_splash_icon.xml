@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Clock/history glyph used as the branded icon on the system splash
+     screen (Android 12+ SplashScreen API). Reuses the same mark as the
+     launcher icon so app-open feels continuous rather than showing a
+     different logo for a split second. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24 C37.4,24 24,37.4 24,54 C24,70.6 37.4,84 54,84 C70.6,84 84,70.6 84,54 C84,37.4 70.6,24 54,24 Z M54,78 C40.75,78 30,67.25 30,54 C30,40.75 40.75,30 54,30 C67.25,30 78,40.75 78,54 C78,67.25 67.25,78 54,78 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,38 L51,38 L51,57 L67.5,66.75 L70,62.7 L56,54.5 Z"/>
+</vector>
