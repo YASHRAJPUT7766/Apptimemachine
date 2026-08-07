@@ -1,6 +1,7 @@
 package com.apptimemachine.core.utils
 
 import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -53,4 +54,34 @@ object Formatters {
 
     fun time(timestamp: Long): String =
         DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(timestamp))
+
+    /**
+     * Calendar-day section label for grouped lists (Timeline): "Today",
+     * "Yesterday", or the actual date — matches the reference design where
+     * events are grouped by real calendar day rather than a rolling
+     * relative-time window.
+     */
+    fun dayLabel(timestamp: Long, now: Long = System.currentTimeMillis()): String {
+        val eventDay = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val today = Calendar.getInstance().apply { timeInMillis = now }
+        val yesterday = Calendar.getInstance().apply { timeInMillis = now; add(Calendar.DAY_OF_YEAR, -1) }
+
+        return when {
+            isSameDay(eventDay, today) -> "Today"
+            isSameDay(eventDay, yesterday) -> "Yesterday"
+            eventDay.get(Calendar.YEAR) == today.get(Calendar.YEAR) ->
+                DateFormat.getDateInstance(DateFormat.LONG).format(Date(timestamp))
+                    .substringBefore(", ${eventDay.get(Calendar.YEAR)}")
+            else -> DateFormat.getDateInstance(DateFormat.LONG).format(Date(timestamp))
+        }
+    }
+
+    /** Stable sortable key (yyyyMMdd as Long) for grouping events by calendar day. */
+    fun dayKey(timestamp: Long): Long {
+        val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+        return cal.get(Calendar.YEAR) * 10000L + (cal.get(Calendar.MONTH) + 1) * 100L + cal.get(Calendar.DAY_OF_MONTH)
+    }
+
+    private fun isSameDay(a: Calendar, b: Calendar): Boolean =
+        a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
 }
