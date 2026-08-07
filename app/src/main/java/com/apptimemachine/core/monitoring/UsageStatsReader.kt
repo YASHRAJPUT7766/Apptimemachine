@@ -76,10 +76,10 @@ class UsageStatsReader @Inject constructor(
     }
 
     private fun readLaunchCount(stat: android.app.usage.UsageStats): Int {
-        // appLaunchCount was added in API 29; unavailable below that —
-        // exposed as 0 rather than guessed (spec: never estimate).
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching { stat.appLaunchCount }.getOrDefault(0)
-        } else 0
+        // Per-app launch count is not exposed by the public UsageStats API
+        // on any API level — exposed as 0 rather than guessed or read via
+        // hidden/reflection APIs (spec Rule 6: no hidden APIs, no
+        // reflection; spec: never estimate, never fabricate).
+        return 0
     }
 }
