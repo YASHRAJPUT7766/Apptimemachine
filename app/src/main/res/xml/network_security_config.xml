@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Offline First: application performs no network communication for monitoring.
+     Cleartext traffic disabled entirely; no domains are trusted by default. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

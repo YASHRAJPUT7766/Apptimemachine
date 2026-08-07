@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">App Time Machine</string>
+    <string name="app_tagline">Your App History Starts Today</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Your App History Starts Today</string>
+    <string name="onboarding_welcome_subtitle">Track your apps from this moment forward</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_learn_more">Learn More</string>
+
+    <!-- Feature intro -->
+    <string name="feature_timeline_title">App Timeline</string>
+    <string name="feature_timeline_desc">Build a complete history of your apps from now on.</string>
+    <string name="feature_storage_title">Storage History</string>
+    <string name="feature_storage_desc">Monitor storage growth over time.</string>
+    <string name="feature_usage_title">Usage Analytics</string>
+    <string name="feature_usage_desc">Analyze how your apps are used.</string>
+    <string name="feature_reports_title">Reports</string>
+    <string name="feature_reports_desc">Generate detailed reports anytime.</string>
+    <string name="feature_privacy_title">Privacy</string>
+    <string name="feature_privacy_desc">Everything is stored locally unless you choose to export or share it.</string>
+
+    <!-- Limitations -->
+    <string name="limitations_title">Before you begin</string>
+    <string name="limitations_body">App Time Machine cannot reconstruct events that occurred before monitoring started. History begins after setup is completed. Some information depends on your Android version and the permissions you grant.</string>
+
+    <!-- Privacy -->
+    <string name="privacy_statement">No monitoring data is uploaded automatically.</string>
+
+    <!-- Permissions -->
+    <string name="permission_usage_access_title">Usage Access</string>
+    <string name="permission_usage_access_desc">Needed to measure how long and how often you use each app.</string>
+    <string name="permission_notification_title">Notification Listener</string>
+    <string name="permission_notification_desc">Optional — lets App Time Machine record when notifications arrive.</string>
+    <string name="permission_battery_title">Battery Optimization Exception</string>
+    <string name="permission_battery_desc">Optional — helps background scans run reliably.</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_good_morning">Good Morning</string>
+    <string name="dashboard_good_afternoon">Good Afternoon</string>
+    <string name="dashboard_good_evening">Good Evening</string>
+    <string name="dashboard_monitoring_apps">Monitoring %1$d Applications</string>
+
+    <!-- Empty states -->
+    <string name="empty_timeline_title">Monitoring has started</string>
+    <string name="empty_timeline_desc">Timeline events will appear automatically when supported changes are detected.</string>
+    <string name="empty_scan_now">Scan Now</string>
+
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_timeline">Timeline</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_reports">Reports</string>
+    <string name="nav_settings">Settings</string>
+</resources>

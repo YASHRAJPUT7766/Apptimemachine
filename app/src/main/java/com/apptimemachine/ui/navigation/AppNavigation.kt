@@ -1,0 +1,137 @@
+package com.apptimemachine.ui.navigation
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.apptimemachine.ui.apps.AppsListScreen
+import com.apptimemachine.ui.backup.BackupScreen
+import com.apptimemachine.ui.compare.CompareScreen
+import com.apptimemachine.ui.dashboard.DashboardScreen
+import com.apptimemachine.ui.details.AppDetailsScreen
+import com.apptimemachine.ui.reports.ReportsScreen
+import com.apptimemachine.ui.search.SearchScreen
+import com.apptimemachine.ui.settings.SettingsScreen
+import com.apptimemachine.ui.statistics.StatisticsScreen
+import com.apptimemachine.ui.timeline.TimelineScreen
+
+/**
+ * Part 1.4A Navigation: "No Navigation Drawer. Everything should be
+ * reachable using Bottom Navigation and Top App Bar" — exactly five
+ * bottom-nav destinations (Dashboard/Timeline/Apps/Reports/Settings per
+ * Part 1.2 spec), with Details/Search/Compare/Statistics/Backup pushed on
+ * top as regular back-stack entries reachable from Dashboard Quick Actions
+ * or contextual taps (Part 1.4A Navigation Flow).
+ */
+private sealed class TopLevelDestination(val route: String, val label: String, val icon: ImageVector) {
+    data object Dashboard : TopLevelDestination("dashboard", "Dashboard", Icons.Default.Dashboard)
+    data object Timeline : TopLevelDestination("timeline", "Timeline", Icons.Default.History)
+    data object Apps : TopLevelDestination("apps", "Apps", Icons.Default.Apps)
+    data object Reports : TopLevelDestination("reports", "Reports", Icons.Default.Description)
+    data object Settings : TopLevelDestination("settings", "Settings", Icons.Default.Settings)
+}
+
+private val bottomNavItems = listOf(
+    TopLevelDestination.Dashboard,
+    TopLevelDestination.Timeline,
+    TopLevelDestination.Apps,
+    TopLevelDestination.Reports,
+    TopLevelDestination.Settings
+)
+
+private const val ROUTE_APP_DETAILS = "app_details/{appId}"
+private const val ROUTE_SEARCH = "search"
+private const val ROUTE_STATISTICS = "statistics"
+private const val ROUTE_COMPARE = "compare"
+private const val ROUTE_BACKUP = "backup"
+
+@Composable
+fun AppNavigation() {
+    val navController = rememberNavController()
+
+    Scaffold(
+        bottomBar = { AppBottomBar(navController) }
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = TopLevelDestination.Dashboard.route,
+            modifier = androidx.compose.ui.Modifier.padding(padding)
+        ) {
+            composable(TopLevelDestination.Dashboard.route) {
+                DashboardScreen(
+                    onOpenTimeline = { navController.navigate(TopLevelDestination.Timeline.route) },
+                    onOpenApps = { navController.navigate(TopLevelDestination.Apps.route) },
+                    onOpenSettings = { navController.navigate(TopLevelDestination.Settings.route) },
+                    onOpenSearch = { navController.navigate(ROUTE_SEARCH) },
+                    onOpenStatistics = { navController.navigate(ROUTE_STATISTICS) },
+                    onOpenCompare = { navController.navigate(ROUTE_COMPARE) },
+                    onOpenBackup = { navController.navigate(ROUTE_BACKUP) }
+                )
+            }
+            composable(TopLevelDestination.Timeline.route) { TimelineScreen() }
+            composable(TopLevelDestination.Apps.route) {
+                AppsListScreen(onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") })
+            }
+            composable(TopLevelDestination.Reports.route) { ReportsScreen() }
+            composable(TopLevelDestination.Settings.route) { SettingsScreen() }
+
+            composable(
+                route = ROUTE_APP_DETAILS,
+                arguments = listOf(navArgument("appId") { type = androidx.navigation.NavType.LongType })
+            ) {
+                AppDetailsScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(ROUTE_SEARCH) {
+                SearchScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") }
+                )
+            }
+            composable(ROUTE_STATISTICS) { StatisticsScreen() }
+            composable(ROUTE_COMPARE) { CompareScreen() }
+            composable(ROUTE_BACKUP) { BackupScreen() }
+        }
+    }
+}
+
+@Composable
+private fun AppBottomBar(navController: NavHostController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
+    // Hide bottom bar on detail/nested screens (Part 1.4A: bottom nav is
+    // for the five top-level destinations only).
+    val isTopLevel = bottomNavItems.any { item ->
+        currentDestination?.hierarchy?.any { it.route == item.route } == true
+    }
+    if (!isTopLevel) return
+
+    NavigationBar {
+        bottomNavItems.forEach { destination ->
+            val selected = currentDestination?.hierarchy?.any { it.route == destination.route } == true
+            NavigationBarItem(
+                selected = selected,
+                onClick = {
+                    navController.navigate(destination.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = { Icon(destination.icon, contentDescription = destination.label) },
+                label = { Text(destination.label) }
+            )
+        }
+    }
+}

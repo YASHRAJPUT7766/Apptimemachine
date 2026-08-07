@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exposes only the app-private exports/ and backups/ folders via
+     FileProvider — nothing else on disk is shareable (Part 3.3 File
+     Security: reports/backups are created only after explicit user action). -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="exports" path="exports/" />
+    <files-path name="backups" path="backups/" />
+</paths>
