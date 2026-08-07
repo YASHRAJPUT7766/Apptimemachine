@@ -28,3 +28,14 @@
 -keep class androidx.work.impl.WorkManagerInitializer
 -keep class * extends androidx.work.Worker
 -keep class * extends androidx.work.CoroutineWorker { <init>(...); }
+
+# Coil — custom Fetcher.Factory resolves "package:<name>" model strings via
+# runtime type matching. Without this, R8 full mode obfuscates/strips
+# AppIconFetcher's structure and icon loading silently fails in release
+# builds only (Apps list / Timeline / Search / App Details all show the
+# fallback glyph instead of the real icon).
+-keep class com.apptimemachine.core.utils.AppIconFetcher { *; }
+-keep class com.apptimemachine.core.utils.AppIconFetcher$Factory { *; }
+-keep class coil.fetch.Fetcher { *; }
+-keep interface coil.fetch.Fetcher$Factory { *; }
+-keep class * implements coil.fetch.Fetcher$Factory
