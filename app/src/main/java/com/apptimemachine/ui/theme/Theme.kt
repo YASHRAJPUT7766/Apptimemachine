@@ -102,9 +102,18 @@ fun AppTimeMachineTheme(
     }
 
     if (darkTheme && amoledMode) {
+        // Only background/surface go pure black for OLED power savings.
+        // surfaceContainer* must stay a step lighter than pure black or
+        // every AtmCard blends into the page and the whole screen reads as
+        // a flat, contrastless black slab (the "ajeeb" look on Home) —
+        // cards need to visibly sit on top of the background, not merge
+        // into it.
         colorScheme = colorScheme.copy(
             background = Color.Black,
-            surface = Color.Black
+            surface = Color.Black,
+            surfaceContainerLow = Color(0xFF0D0D10),
+            surfaceContainer = Color(0xFF17171C),
+            surfaceContainerHigh = Color(0xFF1F1F25)
         )
     }
 
