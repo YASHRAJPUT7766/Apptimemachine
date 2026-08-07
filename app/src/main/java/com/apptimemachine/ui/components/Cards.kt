@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,8 +16,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+import coil.size.Size
 
 /**
  * The base card shape used across every screen (Part 1.4A Card Design:
@@ -149,6 +155,52 @@ fun ShimmerCard(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
         ShimmerBox(Modifier.fillMaxWidth(0.3f).height(12.dp))
     }
+}
+
+/**
+ * Shared app-icon loader used by Apps list, Timeline, App Details, Search,
+ * Compare — anywhere a package icon needs to render. Uses the app-wide
+ * Hilt ImageLoader (wired via AppIconFetcher.Factory + ImageLoaderFactory
+ * on the Application class) so icons resolve live from PackageManager and
+ * get memory-cached for smooth scrolling. Falls back to a neutral android
+ * icon glyph if the package is no longer installed (e.g. an old timeline
+ * event for an app the user has since uninstalled) instead of a blank box.
+ */
+@Composable
+fun AppIcon(
+    packageName: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 44.dp,
+    cornerRadius: Dp = 12.dp
+) {
+    val context = LocalContext.current
+    SubcomposeAsyncImage(
+        model = ImageRequest.Builder(context)
+            .data("package:$packageName")
+            .size(Size.ORIGINAL)
+            .crossfade(150)
+            .build(),
+        contentDescription = null,
+        modifier = modifier.size(size).clip(RoundedCornerShape(cornerRadius)),
+        loading = {
+            Box(
+                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)
+            )
+        },
+        error = {
+            Box(
+                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Android,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(size * 0.55f)
+                )
+            }
+        }
+    )
 }
 
 @Composable
