@@ -6,6 +6,23 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Release signing config, loaded from keystore.properties (local dev) or
+// from environment variables (CI, e.g. GitHub Actions secrets) so the
+// actual keystore file and passwords are never committed to git — see
+// .gitignore. If neither source is present, release builds simply build
+// unsigned rather than failing, so debug/CI checks that don't need a
+// signed APK still work.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = java.util.Properties()
+val hasKeystoreProperties = keystorePropertiesFile.exists()
+if (hasKeystoreProperties) {
+    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+}
+
+fun signingProp(propKey: String, envKey: String): String? =
+    (if (hasKeystoreProperties) keystoreProperties.getProperty(propKey) else null)
+        ?: System.getenv(envKey)
+
 android {
     namespace = "com.apptimemachine"
     compileSdk = 35
@@ -20,6 +37,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = signingProp("storeFile", "DEMONITER_KEYSTORE_PATH")
+            val storePwd = signingProp("storePassword", "DEMONITER_KEYSTORE_PASSWORD")
+            val alias = signingProp("keyAlias", "DEMONITER_KEY_ALIAS")
+            val keyPwd = signingProp("keyPassword", "DEMONITER_KEY_PASSWORD")
+
+            if (storeFilePath != null && storePwd != null && alias != null && keyPwd != null) {
+                storeFile = file(storeFilePath)
+                storePassword = storePwd
+                keyAlias = alias
+                keyPassword = keyPwd
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -28,6 +61,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -47,6 +84,7 @@ android {
     buildFeatures {
         compose = true
     }
+
 
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -106,6 +144,7 @@ dependencies {
 
     // Image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Charts (Compose-native, no external chart lib dependency needed —
     // custom Canvas-based charts implemented in ui/components)
