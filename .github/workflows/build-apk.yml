@@ -25,14 +25,7 @@ jobs:
           gradle-version: '8.7'
 
       - name: Generate Gradle wrapper
-        run: |
-          mkdir -p "$RUNNER_TEMP/wrapper-gen"
-          cd "$RUNNER_TEMP/wrapper-gen"
-          gradle wrapper --gradle-version 8.7
-          cp -r gradle "$GITHUB_WORKSPACE/"
-          cp gradlew "$GITHUB_WORKSPACE/"
-          cp gradlew.bat "$GITHUB_WORKSPACE/"
-          chmod +x "$GITHUB_WORKSPACE/gradlew"
+        run: gradle wrapper --gradle-version 8.7
 
       - name: Decode keystore
         env:
