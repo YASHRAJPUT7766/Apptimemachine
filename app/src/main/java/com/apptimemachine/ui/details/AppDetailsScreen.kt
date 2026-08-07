@@ -10,20 +10,16 @@ import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.apptimemachine.core.utils.Formatters
 import com.apptimemachine.data.entities.PermissionState
+import com.apptimemachine.ui.components.AppIcon
 import com.apptimemachine.ui.components.AtmCard
 import com.apptimemachine.ui.components.EmptyState
 import com.apptimemachine.ui.components.SectionHeader
-import com.apptimemachine.ui.dashboard.TimelineEventRow
+import com.apptimemachine.ui.timeline.TimelineEventRow
 
 private val tabs = listOf("Overview", "Timeline", "Storage", "Version", "Permissions")
 
@@ -34,7 +30,6 @@ fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltVi
     val state by viewModel.uiState.collectAsState()
     val timeline by viewModel.timelineState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -63,11 +58,7 @@ fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltVi
         Column(modifier = Modifier.padding(padding)) {
             AtmCard(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context).data("package:${app.packageName}").build(),
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp))
-                    )
+                    AppIcon(packageName = app.packageName, size = 56.dp, cornerRadius = 16.dp)
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(app.appName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
