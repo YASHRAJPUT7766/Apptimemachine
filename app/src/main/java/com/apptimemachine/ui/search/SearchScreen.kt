@@ -16,14 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.apptimemachine.data.entities.RecentSearchEntity
+import com.apptimemachine.ui.components.AppIcon
 import com.apptimemachine.ui.components.AtmCard
 import com.apptimemachine.ui.components.EmptyState
 import com.apptimemachine.ui.components.SectionHeader
@@ -33,7 +31,6 @@ import com.apptimemachine.ui.components.SectionHeader
 @Composable
 fun SearchScreen(onBack: () -> Unit, onOpenAppDetails: (Long) -> Unit, viewModel: SearchViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -89,11 +86,7 @@ fun SearchScreen(onBack: () -> Unit, onOpenAppDetails: (Long) -> Unit, viewModel
             items(state.matchingApps, key = { it.appId }) { app ->
                 AtmCard(onClick = { onOpenAppDetails(app.appId) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context).data("package:${app.packageName}").build(),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp)
-                        )
+                        AppIcon(packageName = app.packageName, size = 40.dp)
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(app.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
