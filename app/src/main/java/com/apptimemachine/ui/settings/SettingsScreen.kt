@@ -1,11 +1,18 @@
 package com.apptimemachine.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -13,60 +20,133 @@ import com.apptimemachine.core.datastore.AppTheme
 import com.apptimemachine.core.datastore.ScanInterval
 import com.apptimemachine.data.entities.NotificationPrivacyMode
 import com.apptimemachine.ui.components.AtmCard
-import com.apptimemachine.ui.components.SectionHeader
 
+/**
+ * Settings — restyled as icon-led rows grouped into cards, matching the
+ * Dashboard's rounded-card / purple-accent language instead of plain
+ * label+switch rows.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    onOpenReports: () -> Unit = {}
+) {
     val state by viewModel.uiState.collectAsState()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings", fontWeight = FontWeight.Bold) }
+            )
+        }
+    ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            item { SectionHeader("Appearance") }
             item {
+                SettingsSectionHeader("Appearance", Icons.Outlined.Palette)
                 AtmCard {
-                    SettingRow("Dynamic Color", state.dynamicColor, viewModel::setDynamicColor)
-                    SettingRow("AMOLED Mode", state.amoledMode, viewModel::setAmoledMode)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Theme", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    IconSettingRow(
+                        icon = Icons.Outlined.ColorLens,
+                        label = "Dynamic Color",
+                        description = "Match colors to your wallpaper",
+                        checked = state.dynamicColor,
+                        onCheckedChange = viewModel::setDynamicColor
+                    )
+                    SettingsDivider()
+                    IconSettingRow(
+                        icon = Icons.Outlined.DarkMode,
+                        label = "AMOLED Mode",
+                        description = "Pure black backgrounds to save battery",
+                        checked = state.amoledMode,
+                        onCheckedChange = viewModel::setAmoledMode
+                    )
+                    SettingsDivider()
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Theme",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppTheme.entries.forEach { theme ->
                             FilterChip(
                                 selected = state.theme == theme,
                                 onClick = { viewModel.setTheme(theme) },
-                                label = { Text(theme.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                                label = { Text(theme.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
                 }
             }
 
-            item { SectionHeader("Monitoring") }
             item {
+                SettingsSectionHeader("Monitoring", Icons.Outlined.Radar)
                 AtmCard {
-                    SettingRow("Scan on Boot", state.scanOnBoot, viewModel::setScanOnBoot)
-                    SettingRow("Scan While Charging", state.scanWhileCharging, viewModel::setScanWhileCharging)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Quick Scan Interval", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(8.dp))
+                    IconSettingRow(
+                        icon = Icons.Outlined.PowerSettingsNew,
+                        label = "Scan on Boot",
+                        description = "Run a scan automatically after restart",
+                        checked = state.scanOnBoot,
+                        onCheckedChange = viewModel::setScanOnBoot
+                    )
+                    SettingsDivider()
+                    IconSettingRow(
+                        icon = Icons.Outlined.BatteryChargingFull,
+                        label = "Scan While Charging",
+                        description = "Prioritize scans during charging sessions",
+                        checked = state.scanWhileCharging,
+                        onCheckedChange = viewModel::setScanWhileCharging
+                    )
+                    SettingsDivider()
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIconChip(Icons.Outlined.Timer)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Quick Scan Interval",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
                     ScanIntervalSelector(state.quickScanInterval, viewModel::setQuickScanInterval)
                 }
             }
 
-            item { SectionHeader("Privacy") }
             item {
+                SettingsSectionHeader("Privacy", Icons.Outlined.Shield)
                 AtmCard {
-                    Text("Notification Privacy Mode", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(8.dp))
-                    Column {
-                        NotificationPrivacyMode.entries.forEach { mode ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIconChip(Icons.Outlined.VisibilityOff)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Notification Privacy Mode",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(vertical = 4.dp)
+                    ) {
+                        NotificationPrivacyMode.entries.forEachIndexed { index, mode ->
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(privacyModeLabel(mode), style = MaterialTheme.typography.bodyMedium)
                                 RadioButton(
@@ -74,41 +154,168 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                     onClick = { viewModel.setNotificationPrivacyMode(mode) }
                                 )
                             }
+                            if (index != NotificationPrivacyMode.entries.lastIndex) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    SettingRow("Require App Lock", state.appLockEnabled, viewModel::setAppLockEnabled)
+                    SettingsDivider()
+                    IconSettingRow(
+                        icon = Icons.Outlined.Lock,
+                        label = "Require App Lock",
+                        description = "Ask for authentication when opening the app",
+                        checked = state.appLockEnabled,
+                        onCheckedChange = viewModel::setAppLockEnabled
+                    )
                 }
             }
 
-            item { SectionHeader("Backup") }
             item {
+                SettingsSectionHeader("Backup", Icons.Outlined.CloudUpload)
                 AtmCard {
-                    SettingRow("Automatic Backup", state.autoBackupEnabled, viewModel::setAutoBackupEnabled)
+                    IconSettingRow(
+                        icon = Icons.Outlined.Backup,
+                        label = "Automatic Backup",
+                        description = "Keep a local backup up to date",
+                        checked = state.autoBackupEnabled,
+                        onCheckedChange = viewModel::setAutoBackupEnabled
+                    )
                 }
             }
 
             item {
-                Text(
-                    "App Time Machine works completely offline. No monitoring data is uploaded automatically.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
+                SettingsSectionHeader("General", Icons.Outlined.Description)
+                AtmCard {
+                    NavigationSettingRow(
+                        icon = Icons.Outlined.Description,
+                        label = "Reports",
+                        description = "View generated monitoring reports",
+                        onClick = onOpenReports
+                    )
+                }
             }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.OfflineBolt,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Demoniter works completely offline. No monitoring data is uploaded automatically.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
 
 @Composable
-private fun SettingRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SettingsSectionHeader(title: String, icon: ImageVector) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+    Spacer(Modifier.height(4.dp))
+}
+
+@Composable
+private fun SettingsIconChip(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun IconSettingRow(
+    icon: ImageVector,
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SettingsIconChip(icon)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.width(8.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+@Composable
+private fun NavigationSettingRow(
+    icon: ImageVector,
+    label: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SettingsIconChip(icon)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    Spacer(Modifier.height(6.dp))
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    Spacer(Modifier.height(6.dp))
 }
 
 @Composable
@@ -118,7 +325,8 @@ private fun ScanIntervalSelector(selected: ScanInterval, onSelect: (ScanInterval
             FilterChip(
                 selected = selected == interval,
                 onClick = { onSelect(interval) },
-                label = { Text(intervalLabel(interval)) }
+                label = { Text(intervalLabel(interval)) },
+                shape = RoundedCornerShape(12.dp)
             )
         }
     }
