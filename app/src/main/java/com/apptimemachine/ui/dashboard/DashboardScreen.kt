@@ -280,7 +280,7 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
                     state.lastScan?.finishTime?.let { Formatters.relativeTime(it) } ?: "—",
                     "Last Scan"
                 )
-                HeroStat(Icons.AutoMirrored.Filled.TrendingUp, state.totalTimelineEvents.toString(), "Timeline Events")
+                HeroStat(Icons.Filled.TrendingUp, state.totalTimelineEvents.toString(), "Timeline Events")
                 HeroStat(Icons.Default.Notifications, state.eventsToday.toString(), "Today's Events")
             }
         }
@@ -460,7 +460,7 @@ private fun QuickActionsGrid(
                 modifier = Modifier.weight(1f)
             )
             QuickActionTile(
-                icon = Icons.AutoMirrored.Filled.CompareArrows,
+                icon = Icons.Filled.CompareArrows,
                 title = "Compare",
                 subtitle = "Compare changes",
                 onClick = onOpenCompare,
