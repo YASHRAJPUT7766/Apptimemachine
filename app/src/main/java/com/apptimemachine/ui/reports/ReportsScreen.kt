@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -17,7 +18,10 @@ import com.apptimemachine.ui.components.SectionHeader
 /** Part 3.1 Export Engine UI: pick a period + format, generate, then share. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
+fun ReportsScreen(
+    viewModel: ReportsViewModel = hiltViewModel(),
+    onBack: () -> Unit = {}
+) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -32,7 +36,18 @@ fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Reports") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Reports") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
             SectionHeader("Time Period")
             AtmCard {
