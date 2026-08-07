@@ -22,10 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.apptimemachine.core.utils.Formatters
-import com.apptimemachine.data.entities.EventSeverity
-import com.apptimemachine.data.entities.TimelineEventEntity
 import com.apptimemachine.ui.components.AtmCard
 import com.apptimemachine.ui.components.ShimmerCard
+import com.apptimemachine.ui.timeline.TimelineEventRow
 import java.time.LocalTime
 
 /**
@@ -545,40 +544,4 @@ private fun QuickActionTile(
     }
 }
 
-@Composable
-fun TimelineEventRow(event: TimelineEventEntity, modifier: Modifier = Modifier) {
-    AtmCard(modifier = modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SeverityDot(event.severity)
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(event.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                Text(
-                    event.eventType.replace('_', ' ').lowercase()
-                        .replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                Formatters.relativeTime(event.createdTimestamp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
 
-@Composable
-fun SeverityDot(severity: EventSeverity) {
-    val color = when (severity) {
-        EventSeverity.INFO -> MaterialTheme.colorScheme.tertiary
-        EventSeverity.SUCCESS -> Color(0xFF2E7D32)
-        EventSeverity.WARNING -> Color(0xFFED6C02)
-        EventSeverity.IMPORTANT -> MaterialTheme.colorScheme.primary
-        EventSeverity.CRITICAL -> Color(0xFFD32F2F)
-    }
-    Box(modifier = Modifier.size(10.dp)) {
-        Icon(Icons.Default.Circle, contentDescription = null, tint = color, modifier = Modifier.fillMaxSize())
-    }
-}
