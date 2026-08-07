@@ -6,6 +6,25 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
+    <!-- Belt-and-braces alongside QUERY_ALL_PACKAGES: on Android 11+ (API 30+),
+         PackageManager enforces package visibility even when QUERY_ALL_PACKAGES
+         is granted but not honored by the OEM/Play install path (common on
+         MIUI and other custom skins, and on sideloaded/debug builds). This
+         <queries> block guarantees every installed launchable app — and its
+         icon via getApplicationIcon() — stays visible regardless of how the
+         app was installed. Without it, PackageManager silently returns
+         "not found" for most packages, which is why icons/version/size were
+         showing as blank/"Unavailable" for almost every app in the list. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
+
     <!-- Usage Access — special permission, requested via Settings -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
