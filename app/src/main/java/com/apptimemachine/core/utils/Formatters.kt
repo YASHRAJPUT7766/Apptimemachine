@@ -84,4 +84,8 @@ object Formatters {
 
     private fun isSameDay(a: Calendar, b: Calendar): Boolean =
         a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+
+    /** Short weekday/date label for chart x-axes, e.g. "Mon" or "12 Aug". */
+    fun shortDayLabel(timestamp: Long): String =
+        DateFormat.getDateInstance(DateFormat.SHORT).format(Date(timestamp)).substringBeforeLast('/')
 }
