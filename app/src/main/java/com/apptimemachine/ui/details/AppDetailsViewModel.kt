@@ -19,9 +19,29 @@ data class AppDetailsUiState(
     val storageHistory: List<StorageHistoryEntity> = emptyList(),
     val versionHistory: List<VersionHistoryEntity> = emptyList(),
     val permissionHistory: List<PermissionHistoryEntity> = emptyList(),
+    val dailyUsage: List<com.apptimemachine.data.entities.DailyUsageEntity> = emptyList(),
     val timeline: List<TimelineEventEntity> = emptyList(),
+    val hasUsageAccess: Boolean = true,
     val isLoading: Boolean = true
-)
+) {
+    /** Currently-granted permissions, newest-relevant-first, parsed from the live snapshot (not history). */
+    val grantedPermissions: List<String>
+        get() = app?.grantedPermissionsSnapshot
+            ?.split(",")
+            ?.filter { it.isNotBlank() }
+            ?.sorted()
+            ?: emptyList()
+
+    /** Today's foreground time for this app, or null if usage access isn't granted / no data yet. */
+    val todayUsageMs: Long?
+        get() = dailyUsage.maxByOrNull { it.dateEpochDay }?.foregroundTimeMs
+
+    /** Average daily foreground time over the tracked window, used as the ring's reference point. */
+    val averageDailyUsageMs: Long?
+        get() = dailyUsage.filter { it.foregroundTimeMs > 0 }
+            .takeIf { it.isNotEmpty() }
+            ?.let { list -> list.sumOf { it.foregroundTimeMs } / list.size }
+}
 
 /** Part 2.7 Application Details — Overview/Timeline/Storage/Version/Permissions tabs share this one ViewModel. */
 @HiltViewModel
@@ -31,7 +51,9 @@ class AppDetailsViewModel @Inject constructor(
     private val timelineRepository: TimelineRepository,
     private val storageRepository: StorageRepository,
     private val versionRepository: VersionRepository,
-    private val permissionRepository: PermissionRepository
+    private val permissionRepository: PermissionRepository,
+    private val usageRepository: UsageRepository,
+    private val usageStatsReader: com.apptimemachine.core.monitoring.UsageStatsReader
 ) : ViewModel() {
 
     private val appId: Long = checkNotNull(savedStateHandle["appId"])
@@ -40,13 +62,16 @@ class AppDetailsViewModel @Inject constructor(
         appRepository.observeById(appId),
         storageRepository.observeForApp(appId),
         versionRepository.observeForApp(appId),
-        permissionRepository.observeForApp(appId)
-    ) { app, storage, version, permissions ->
+        permissionRepository.observeForApp(appId),
+        usageRepository.observeForApp(appId)
+    ) { app, storage, version, permissions, usage ->
         AppDetailsUiState(
             app = app,
             storageHistory = storage,
             versionHistory = version,
             permissionHistory = permissions,
+            dailyUsage = usage,
+            hasUsageAccess = usageStatsReader.hasUsageAccessPermission(),
             isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppDetailsUiState())
