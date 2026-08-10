@@ -28,7 +28,8 @@ data class RawStorageSnapshot(
  */
 @Singleton
 class StorageStatsReader @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val usageStatsReader: UsageStatsReader
 ) {
     private val storageStatsManager: StorageStatsManager? by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -39,11 +40,18 @@ class StorageStatsReader @Inject constructor(
     /**
      * Requires PACKAGE_USAGE_STATS (Usage Access) to succeed for apps other
      * than the caller itself — this is an Android platform requirement, not
-     * an app design choice. Returns all-null on any failure rather than
-     * throwing, so scans continue for other apps (Part 2.0 Failure Handling).
+     * an app design choice (queryStatsForPackage silently no-ops/throws
+     * without it). We check hasUsageAccessPermission() up front — the same
+     * gate scanUsage() already used — instead of relying on the query to
+     * fail on its own, since without this every app's storage came back
+     * null and the whole Storage tab showed "Unavailable" with no
+     * indication that granting Usage Access was the fix. Returns all-null
+     * on any failure rather than throwing, so scans continue for other
+     * apps (Part 2.0 Failure Handling).
      */
     fun readStorage(packageName: String, uid: Int): RawStorageSnapshot {
         val manager = storageStatsManager ?: return RawStorageSnapshot(null, null, null)
+        if (!usageStatsReader.hasUsageAccessPermission()) return RawStorageSnapshot(null, null, null)
 
         return runCatching {
             val userHandle: UserHandle = Process.myUserHandle()

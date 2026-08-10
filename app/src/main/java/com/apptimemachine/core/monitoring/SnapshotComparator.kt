@@ -69,14 +69,35 @@ class SnapshotComparator @Inject constructor() {
         now: Long,
         scanType: ScanType,
         scanId: Long?,
-        minDeltaBytes: Long = 51_200 // 50 KB noise floor
+        minDeltaBytes: Long = 51_200 // 50 KB noise floor — gates the Timeline EVENT only
     ): Pair<TimelineEventEntity?, StorageHistoryEntity?> {
         val currentTotal = currentStorage.totalBytes ?: return null to null
         val prev = previousTotal
 
         if (prev != null) {
             val delta = currentTotal - prev
-            if (kotlin.math.abs(delta) < minDeltaBytes) return null to null
+
+            // History is recorded on every scan regardless of delta size —
+            // this is what feeds the daily storage graph ("aaj kitna
+            // badha"), so it needs one continuous point per day even when
+            // nothing changed, not just points on the days something grew
+            // past the noise floor. Only the Timeline EVENT (which would
+            // otherwise spam "Storage changed by 3KB" constantly) stays
+            // gated behind minDeltaBytes.
+            val history = StorageHistoryEntity(
+                appId = appId,
+                appSizeBytes = currentStorage.appSizeBytes,
+                dataSizeBytes = currentStorage.dataSizeBytes,
+                cacheSizeBytes = currentStorage.cacheSizeBytes,
+                totalSizeBytes = currentTotal,
+                previousTotalSizeBytes = prev,
+                differenceBytes = delta,
+                apkSizeBytes = null,
+                recordedAt = now,
+                scanId = scanId
+            )
+
+            if (kotlin.math.abs(delta) < minDeltaBytes) return null to history
 
             val isGrowth = delta > 0
             val event = TimelineEventEntity(
@@ -94,18 +115,6 @@ class SnapshotComparator @Inject constructor() {
                 createdTimestamp = now,
                 sourceApi = "StorageStatsManager",
                 scanType = scanType,
-                scanId = scanId
-            )
-            val history = StorageHistoryEntity(
-                appId = appId,
-                appSizeBytes = currentStorage.appSizeBytes,
-                dataSizeBytes = currentStorage.dataSizeBytes,
-                cacheSizeBytes = currentStorage.cacheSizeBytes,
-                totalSizeBytes = currentTotal,
-                previousTotalSizeBytes = prev,
-                differenceBytes = delta,
-                apkSizeBytes = null,
-                recordedAt = now,
                 scanId = scanId
             )
             return event to history
