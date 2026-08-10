@@ -95,7 +95,10 @@ fun AppNavigation() {
                 )
             }
             composable(TopLevelDestination.Timeline.route) {
-                TimelineScreen(onOpenSearch = { navController.navigate(ROUTE_SEARCH) })
+                TimelineScreen(
+                    onOpenSearch = { navController.navigate(ROUTE_SEARCH) },
+                    onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") }
+                )
             }
             composable(TopLevelDestination.Apps.route) {
                 AppsListScreen(onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") })
