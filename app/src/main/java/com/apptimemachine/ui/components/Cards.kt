@@ -165,6 +165,11 @@ fun ShimmerCard(modifier: Modifier = Modifier) {
  * get memory-cached for smooth scrolling. Falls back to a neutral android
  * icon glyph if the package is no longer installed (e.g. an old timeline
  * event for an app the user has since uninstalled) instead of a blank box.
+ *
+ * The "package:$packageName" string below is intentional: Coil's built-in
+ * StringMapper turns it into an android.net.Uri with scheme "package"
+ * before any Fetcher runs, and AppIconFetcher.Factory is registered as
+ * Fetcher.Factory<Uri> (not <String>) specifically to receive that.
  */
 @Composable
 fun AppIcon(

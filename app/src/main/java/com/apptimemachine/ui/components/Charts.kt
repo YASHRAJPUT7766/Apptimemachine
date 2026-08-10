@@ -107,6 +107,108 @@ fun SimpleBarChart(
     }
 }
 
+/**
+ * Donut/pie chart for a small set of labeled slices (App Details' Storage
+ * breakdown: App / Data / Cache). Draws as a ring rather than a filled
+ * pie — reads cleaner at small card sizes and leaves room for a center
+ * label (total size) the way the Overview tab's storage summary needs.
+ */
+@Composable
+fun DonutChart(
+    slices: List<Pair<Float, Color>>,
+    modifier: Modifier = Modifier,
+    strokeWidthDp: androidx.compose.ui.unit.Dp = 22.dp,
+    centerContent: (@Composable () -> Unit)? = null
+) {
+    val total = slices.sumOf { it.first.toDouble() }.toFloat()
+    Box(modifier = modifier, contentAlignment = androidx.compose.ui.Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokePx = strokeWidthDp.toPx()
+            val diameter = size.minDimension - strokePx
+            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+            val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
+
+            // Track (full ring) so the donut reads correctly even if
+            // slices don't sum to the visual total.
+            drawArc(
+                color = Color.Gray.copy(alpha = 0.12f),
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Butt)
+            )
+
+            if (total > 0f) {
+                var startAngle = -90f
+                slices.forEach { (value, color) ->
+                    val sweep = (value / total) * 360f
+                    if (sweep > 0f) {
+                        drawArc(
+                            color = color,
+                            startAngle = startAngle,
+                            sweepAngle = sweep * 0.96f, // tiny gap between slices
+                            useCenter = false,
+                            topLeft = topLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                        )
+                        startAngle += sweep
+                    }
+                }
+            }
+        }
+        centerContent?.invoke()
+    }
+}
+
+/**
+ * Circular ring progress — used for "today's usage vs typical" style dials
+ * (App Details Overview: a clock-like ring showing today's foreground time
+ * against the app's own recent daily average, so the ring is meaningful
+ * per-app rather than an arbitrary fixed target).
+ */
+@Composable
+fun RingProgress(
+    progress: Float, // 0f..1f (values above 1 are clamped visually but still shown as overflow color)
+    modifier: Modifier = Modifier,
+    strokeWidthDp: androidx.compose.ui.unit.Dp = 14.dp,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    progressColor: Color = MaterialTheme.colorScheme.primary,
+    centerContent: (@Composable () -> Unit)? = null
+) {
+    val clamped = progress.coerceIn(0f, 1f)
+    Box(modifier = modifier, contentAlignment = androidx.compose.ui.Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokePx = strokeWidthDp.toPx()
+            val diameter = size.minDimension - strokePx
+            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+            val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
+
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+            drawArc(
+                color = progressColor,
+                startAngle = -90f,
+                sweepAngle = 360f * clamped,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+        }
+        centerContent?.invoke()
+    }
+}
+
 /** Part 2.8 Calendar Heatmap — simplified grid of colored day-cells by event density. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
