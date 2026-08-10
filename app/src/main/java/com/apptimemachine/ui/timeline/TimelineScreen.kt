@@ -39,6 +39,7 @@ import com.apptimemachine.ui.components.ShimmerCard
 @Composable
 fun TimelineScreen(
     onOpenSearch: () -> Unit = {},
+    onOpenAppDetails: (Long) -> Unit = {},
     viewModel: TimelineViewModel = hiltViewModel()
 ) {
     val selectedCategory by viewModel.selectedCategory.collectAsState()
@@ -110,7 +111,10 @@ fun TimelineScreen(
                 ) { index ->
                     when (val item = pagingItems[index]) {
                         is TimelineListItem.Header -> DaySectionHeader(item.label)
-                        is TimelineListItem.Event -> TimelineEventRow(item.event)
+                        is TimelineListItem.Event -> TimelineEventRow(
+                            event = item.event,
+                            onClick = { onOpenAppDetails(item.event.appId) }
+                        )
                         null -> ShimmerCard(Modifier.fillMaxWidth().height(72.dp))
                     }
                 }
@@ -138,10 +142,10 @@ private fun DaySectionHeader(label: String) {
     )
 }
 
-/** Timeline row: live app icon, name, event description, colored severity dot, relative time. */
+/** Timeline row: live app icon, name, event description, colored severity dot, relative time. Tappable to open App Details when [onClick] is provided (Timeline and App Details' own Timeline tab share this row; the tab passes no onClick since it's already inside that app's details). */
 @Composable
-fun TimelineEventRow(event: TimelineEventEntity, modifier: Modifier = Modifier) {
-    AtmCard(modifier = modifier) {
+fun TimelineEventRow(event: TimelineEventEntity, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+    AtmCard(modifier = modifier, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
                 AppIcon(packageName = event.packageName, size = 44.dp)
