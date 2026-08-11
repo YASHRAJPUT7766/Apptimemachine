@@ -1,12 +1,33 @@
 package com.apptimemachine.ui.navigation
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -75,8 +96,29 @@ private const val ROUTE_REPORTS = "reports"
 fun AppNavigation() {
     val navController = rememberNavController()
 
+    // Activity-scoped (created once, outside the NavHost's own back-stack
+    // entries) so it — and the persistent bar below — survive navigating
+    // between Dashboard/Timeline/Apps/Settings and any pushed screen.
+    val scanViewModel: GlobalScanViewModel = hiltViewModel()
+    val isScanning by scanViewModel.isScanning.collectAsState()
+    val resultMessage by scanViewModel.resultMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(resultMessage) {
+        resultMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            scanViewModel.consumeResultMessage()
+        }
+    }
+
     Scaffold(
-        bottomBar = { AppBottomBar(navController) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            Column {
+                GlobalScanBar(isScanning = isScanning, onScan = scanViewModel::runManualScan)
+                AppBottomBar(navController)
+            }
+        }
     ) { padding ->
         NavHost(
             navController = navController,
@@ -126,6 +168,82 @@ fun AppNavigation() {
             composable(ROUTE_STATISTICS) { StatisticsScreen() }
             composable(ROUTE_COMPARE) { CompareScreen() }
             composable(ROUTE_BACKUP) { BackupScreen() }
+        }
+    }
+}
+
+/**
+ * Persistent "Scan Now" pill — rendered above the bottom nav on every
+ * screen (Part of the always-visible manual scan entry point), not just
+ * Dashboard's Quick Actions. Tapping it runs a real scan via
+ * [GlobalScanViewModel]; the icon spins while scanning and a Snackbar
+ * reports what changed once it finishes.
+ */
+@Composable
+private fun GlobalScanBar(isScanning: Boolean, onScan: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "scan_spin")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(1100, easing = LinearEasing), repeatMode = RepeatMode.Restart),
+        label = "scan_spin_angle"
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(50))
+            .clickable(enabled = !isScanning, onClick = onScan),
+        color = MaterialTheme.colorScheme.primary,
+        shape = RoundedCornerShape(50),
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Radar,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(19.dp)
+                        .rotate(if (isScanning) rotation else 0f)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (isScanning) "Scanning…" else "Scan Now",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    if (isScanning) "Checking apps for changes" else "Start a new scan",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+            }
+            if (isScanning) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.White
+                )
+            } else {
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White)
+            }
         }
     }
 }
