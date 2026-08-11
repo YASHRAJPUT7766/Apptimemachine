@@ -1,5 +1,6 @@
 package com.apptimemachine.data.repository
 
+import com.apptimemachine.data.dao.CategoryCount
 import com.apptimemachine.data.dao.InstalledAppDao
 import com.apptimemachine.data.entities.InstalledAppEntity
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,8 @@ class AppRepository @Inject constructor(
     fun observeActiveCount(): Flow<Int> = dao.observeActiveCount()
     fun observeSystemAppCount(): Flow<Int> = dao.observeSystemAppCount()
     fun observeUserAppCount(): Flow<Int> = dao.observeUserAppCount()
+    fun observeDisabledCount(): Flow<Int> = dao.observeDisabledCount()
+    fun observeCategoryBreakdown(): Flow<List<CategoryCount>> = dao.observeCategoryBreakdown()
     fun observeFavorites(): Flow<List<InstalledAppEntity>> = dao.observeFavorites()
     fun search(query: String): Flow<List<InstalledAppEntity>> = dao.search(query)
 
