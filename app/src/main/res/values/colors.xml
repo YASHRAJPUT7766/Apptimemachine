@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Fallback seed palette used when Dynamic Color (Android 12+) is unavailable.
-         Primary is a deep indigo — evokes "time" and premium analytics tone. -->
-    <color name="seed_primary">#4A5FE8</color>
-    <color name="seed_secondary">#5D6470</color>
-    <color name="seed_tertiary">#7D5296</color>
+         Primary is a forest green — matches the app's monitoring/active/security tone. -->
+    <color name="seed_primary">#2E7D32</color>
+    <color name="seed_secondary">#57624F</color>
+    <color name="seed_tertiary">#43A047</color>
 
     <color name="success">#2E7D32</color>
     <color name="warning">#ED6C02</color>
