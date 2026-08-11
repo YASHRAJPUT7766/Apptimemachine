@@ -4,6 +4,12 @@ import androidx.room.*
 import com.apptimemachine.data.entities.InstalledAppEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Row shape for the Top Categories breakdown (Dashboard's Installed Apps card). */
+data class CategoryCount(
+    val category: String,
+    val count: Int
+)
+
 @Dao
 interface InstalledAppDao {
 
@@ -38,6 +44,21 @@ interface InstalledAppDao {
 
     @Query("SELECT COUNT(*) FROM installed_apps WHERE isRemoved = 0 AND isSystemApp = 0")
     fun observeUserAppCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM installed_apps WHERE isRemoved = 0 AND isEnabled = 0")
+    fun observeDisabledCount(): Flow<Int>
+
+    // Category comes straight from ApplicationInfo.category (Part per
+    // PackageInfoReader.categoryName) — apps Android doesn't classify come
+    // back NULL and are grouped under "Uncategorized" rather than guessed.
+    @Query("""
+        SELECT COALESCE(category, 'Uncategorized') AS category, COUNT(*) AS count
+        FROM installed_apps
+        WHERE isRemoved = 0
+        GROUP BY COALESCE(category, 'Uncategorized')
+        ORDER BY count DESC
+    """)
+    fun observeCategoryBreakdown(): Flow<List<CategoryCount>>
 
     @Query("SELECT * FROM installed_apps WHERE isFavorite = 1 ORDER BY appName ASC LIMIT 10")
     fun observeFavorites(): Flow<List<InstalledAppEntity>>
