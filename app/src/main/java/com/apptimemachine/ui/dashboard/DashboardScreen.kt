@@ -200,8 +200,14 @@ private fun greeting(): String {
 /** Gradient hero card — monitoring status, pulse icon, and the 3-stat strip. */
 @Composable
 private fun MonitoringStatusCard(state: DashboardUiState) {
+    // Fixed brand green, not theme.colorScheme.primary/tertiary — those
+    // swap to pale mint in dark mode, which reads "ajeeb" as a big filled
+    // banner. This card should look the same rich green in light and dark.
     val gradient = Brush.linearGradient(
-        colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)
+        colors = listOf(
+            com.apptimemachine.ui.theme.BrandColors.HeroGradientStart,
+            com.apptimemachine.ui.theme.BrandColors.HeroGradientEnd
+        )
     )
     Column(
         modifier = Modifier
@@ -373,12 +379,17 @@ private fun SummaryTile(
             Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.height(10.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = com.apptimemachine.ui.theme.BrandColors.TileValueText
+        )
         Spacer(Modifier.height(2.dp))
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = com.apptimemachine.ui.theme.BrandColors.TileLabelText,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
