@@ -2,6 +2,7 @@ package com.apptimemachine.ui.details
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -24,7 +25,6 @@ import com.apptimemachine.data.entities.StorageHistoryEntity
 import com.apptimemachine.ui.components.AppIcon
 import com.apptimemachine.ui.components.AtmCard
 import com.apptimemachine.ui.components.DonutChart
-import com.apptimemachine.ui.components.EmptyState
 import com.apptimemachine.ui.components.RingProgress
 import com.apptimemachine.ui.components.SimpleBarChart
 import com.apptimemachine.ui.components.SimpleLineChart
@@ -38,8 +38,17 @@ private val tabs = listOf("Overview", "Timeline", "Storage", "Version", "Permiss
 private val ColorAppSize = Color(0xFF4A5FE8)   // primary (indigo)
 private val ColorDataSize = Color(0xFF7D5296)  // tertiary (purple)
 private val ColorCacheSize = Color(0xFFE8A24A) // warm amber, distinct from both
+private val ColorVersion = Color(0xFF2E7D96)   // teal, for the Version tab's dial
 
-/** Part 2.7 Application Details Screen — collapsing header + scrollable tabs. */
+/**
+ * Part 2.7 Application Details Screen — collapsing header + scrollable
+ * tabs. Design rule for this screen: every visual (donut, ring, line, bar)
+ * is ALWAYS on screen, in every tab, whether or not data exists yet — a
+ * zero-value chart communicates "tracking, nothing to show yet" much
+ * better than swapping the whole card for a text-only empty state. Only
+ * list-shaped content (history rows) collapses to a text empty-state,
+ * since there's no meaningful "zero" shape for a list.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltViewModel()) {
@@ -107,6 +116,16 @@ private fun OverviewTab(state: AppDetailsUiState) {
     val app = state.app ?: return
     val latestStorage = state.storageHistory.maxByOrNull { it.recordedAt }
 
+    val appSize = (latestStorage?.appSizeBytes ?: 0L).coerceAtLeast(0L)
+    val dataSize = (latestStorage?.dataSizeBytes ?: 0L).coerceAtLeast(0L)
+    val cacheSize = (latestStorage?.cacheSizeBytes ?: 0L).coerceAtLeast(0L)
+    val total = appSize + dataSize + cacheSize
+
+    val todayMs = state.todayUsageMs ?: 0L
+    val avgMs = state.averageDailyUsageMs
+    val usageReference = (avgMs ?: 1L).coerceAtLeast(1L)
+    val usageProgress = if (avgMs != null) todayMs.toFloat() / usageReference.toFloat() else 0f
+
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             AtmCard {
@@ -128,55 +147,51 @@ private fun OverviewTab(state: AppDetailsUiState) {
 
                 if (!state.hasUsageAccess) {
                     UsageAccessNotice()
-                } else if (latestStorage == null) {
-                    Text(
-                        "Storage will appear after the first scan completes.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    val appSize = (latestStorage.appSizeBytes ?: 0L).coerceAtLeast(0L)
-                    val dataSize = (latestStorage.dataSizeBytes ?: 0L).coerceAtLeast(0L)
-                    val cacheSize = (latestStorage.cacheSizeBytes ?: 0L).coerceAtLeast(0L)
-                    val total = appSize + dataSize + cacheSize
+                    Spacer(Modifier.height(16.dp))
+                }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        DonutChart(
-                            slices = listOf(
-                                appSize.toFloat() to ColorAppSize,
-                                dataSize.toFloat() to ColorDataSize,
-                                cacheSize.toFloat() to ColorCacheSize
-                            ),
-                            modifier = Modifier.size(120.dp),
-                            centerContent = {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        Formatters.bytes(total),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text("total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DonutChart(
+                        slices = listOf(
+                            appSize.toFloat() to ColorAppSize,
+                            dataSize.toFloat() to ColorDataSize,
+                            cacheSize.toFloat() to ColorCacheSize
+                        ),
+                        modifier = Modifier.size(120.dp),
+                        centerContent = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    Formatters.bytes(total),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text("total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                        )
-                        Spacer(Modifier.width(20.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            LegendRow("App", ColorAppSize, Formatters.bytes(latestStorage.appSizeBytes))
-                            LegendRow("Data", ColorDataSize, Formatters.bytes(latestStorage.dataSizeBytes))
-                            LegendRow("Cache", ColorCacheSize, Formatters.bytes(latestStorage.cacheSizeBytes))
                         }
-                    }
-
-                    val todayDelta = latestStorage.differenceBytes
-                    if (todayDelta != null && todayDelta != 0L) {
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            "${if (todayDelta > 0) "Grew" else "Shrank"} by ${Formatters.bytes(kotlin.math.abs(todayDelta))} since last scan",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (todayDelta > 0) Color(0xFFED6C02) else Color(0xFF2E7D32)
-                        )
+                    )
+                    Spacer(Modifier.width(20.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LegendRow("App", ColorAppSize, Formatters.bytes(latestStorage?.appSizeBytes))
+                        LegendRow("Data", ColorDataSize, Formatters.bytes(latestStorage?.dataSizeBytes))
+                        LegendRow("Cache", ColorCacheSize, Formatters.bytes(latestStorage?.cacheSizeBytes))
                     }
                 }
+
+                Spacer(Modifier.height(12.dp))
+                val todayDelta = latestStorage?.differenceBytes
+                Text(
+                    when {
+                        latestStorage == null -> "Waiting for the first scan to record a baseline."
+                        todayDelta == null || todayDelta == 0L -> "No change since last scan."
+                        else -> "${if (todayDelta > 0) "Grew" else "Shrank"} by ${Formatters.bytes(kotlin.math.abs(todayDelta))} since last scan"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when {
+                        todayDelta != null && todayDelta > 0 -> Color(0xFFED6C02)
+                        todayDelta != null && todayDelta < 0 -> Color(0xFF2E7D32)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
             }
         }
 
@@ -187,43 +202,36 @@ private fun OverviewTab(state: AppDetailsUiState) {
 
                 if (!state.hasUsageAccess) {
                     UsageAccessNotice()
-                } else {
-                    val todayMs = state.todayUsageMs
-                    val avgMs = state.averageDailyUsageMs
-                    if (todayMs == null) {
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RingProgress(
+                        progress = usageProgress,
+                        modifier = Modifier.size(96.dp),
+                        progressColor = if (usageProgress > 1f) Color(0xFFED6C02) else MaterialTheme.colorScheme.primary,
+                        centerContent = {
+                            Text(
+                                Formatters.duration(todayMs),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    )
+                    Spacer(Modifier.width(20.dp))
+                    Column {
+                        Text("Today", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         Text(
-                            "No usage recorded yet today.",
-                            style = MaterialTheme.typography.bodyMedium,
+                            when {
+                                !state.hasUsageAccess -> "Grant Usage Access to track this"
+                                avgMs != null -> "vs ${Formatters.duration(avgMs)} daily average"
+                                state.todayUsageMs == null -> "No usage recorded yet today"
+                                else -> "No average yet — check back tomorrow"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else {
-                        val reference = (avgMs ?: todayMs).coerceAtLeast(1L)
-                        val progress = todayMs.toFloat() / reference.toFloat()
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RingProgress(
-                                progress = progress,
-                                modifier = Modifier.size(96.dp),
-                                progressColor = if (progress > 1f) Color(0xFFED6C02) else MaterialTheme.colorScheme.primary,
-                                centerContent = {
-                                    Text(
-                                        Formatters.duration(todayMs),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            )
-                            Spacer(Modifier.width(20.dp))
-                            Column {
-                                Text("Today", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                Text(
-                                    if (avgMs != null) "vs ${Formatters.duration(avgMs)} daily average"
-                                    else "No average yet — check back tomorrow",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -234,7 +242,7 @@ private fun OverviewTab(state: AppDetailsUiState) {
 @Composable
 private fun TimelineTab(events: List<com.apptimemachine.data.entities.TimelineEventEntity>) {
     if (events.isEmpty()) {
-        EmptyState(title = "No history", description = "Nothing has changed for this app yet. Events will appear here as soon as they're detected.")
+        EmptyStateWithIcon(title = "No history", description = "Nothing has changed for this app yet. Events will appear here as soon as they're detected.")
         return
     }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -244,26 +252,22 @@ private fun TimelineTab(events: List<com.apptimemachine.data.entities.TimelineEv
 
 @Composable
 private fun StorageTab(state: AppDetailsUiState) {
-    if (!state.hasUsageAccess) {
-        Box(Modifier.fillMaxWidth().padding(16.dp)) { UsageAccessNotice(inCard = true) }
-        return
-    }
-    if (state.storageHistory.isEmpty()) {
-        EmptyState(title = "No storage history yet", description = "Storage is recorded automatically on every scan — check back after the next one.")
-        return
-    }
-
     val sorted = state.storageHistory.sortedBy { it.recordedAt }
     val dailySeries = groupToDailySeries(sorted)
-    val latest = sorted.last()
+    val latest = sorted.lastOrNull()
 
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (!state.hasUsageAccess) {
+            item { UsageAccessNotice(inCard = true) }
+        }
+
         item {
             AtmCard {
                 Text("Total size trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Last ${dailySeries.size} day${if (dailySeries.size == 1) "" else "s"}",
+                    if (dailySeries.isEmpty()) "No data yet — trend will build up as scans run"
+                    else "Last ${dailySeries.size} day${if (dailySeries.size == 1) "" else "s"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -304,33 +308,39 @@ private fun StorageTab(state: AppDetailsUiState) {
             AtmCard {
                 Text("Current breakdown", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(12.dp))
-                InfoRow("App Size", Formatters.bytes(latest.appSizeBytes))
-                InfoRow("Data", Formatters.bytes(latest.dataSizeBytes))
-                InfoRow("Cache", Formatters.bytes(latest.cacheSizeBytes))
-                InfoRow("Total", Formatters.bytes(latest.totalSizeBytes))
-                InfoRow("Last recorded", Formatters.dateTime(latest.recordedAt))
+                InfoRow("App Size", Formatters.bytes(latest?.appSizeBytes))
+                InfoRow("Data", Formatters.bytes(latest?.dataSizeBytes))
+                InfoRow("Cache", Formatters.bytes(latest?.cacheSizeBytes))
+                InfoRow("Total", Formatters.bytes(latest?.totalSizeBytes))
+                InfoRow("Last recorded", latest?.let { Formatters.dateTime(it.recordedAt) } ?: "Not yet scanned")
             }
         }
 
         item {
             Text("History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
         }
-        items(sorted.sortedByDescending { it.recordedAt }, key = { it.storageHistoryId }) { entry ->
-            AtmCard {
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(Formatters.dateTime(entry.recordedAt), style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        Formatters.signedBytes(entry.differenceBytes),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = when {
-                            (entry.differenceBytes ?: 0) > 0 -> Color(0xFFED6C02)
-                            (entry.differenceBytes ?: 0) < 0 -> Color(0xFF2E7D32)
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
+        if (sorted.isEmpty()) {
+            item {
+                EmptyStateWithIcon(title = "No storage history yet", description = "Storage is recorded automatically on every scan — check back after the next one.")
+            }
+        } else {
+            items(sorted.sortedByDescending { it.recordedAt }, key = { it.storageHistoryId }) { entry ->
+                AtmCard {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text(Formatters.dateTime(entry.recordedAt), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            Formatters.signedBytes(entry.differenceBytes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = when {
+                                (entry.differenceBytes ?: 0) > 0 -> Color(0xFFED6C02)
+                                (entry.differenceBytes ?: 0) < 0 -> Color(0xFF2E7D32)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                    Text(Formatters.bytes(entry.totalSizeBytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(Formatters.bytes(entry.totalSizeBytes), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -352,36 +362,60 @@ private fun groupToDailySeries(sorted: List<StorageHistoryEntity>): List<Pair<Lo
 
 @Composable
 private fun VersionTab(state: AppDetailsUiState) {
-    if (state.versionHistory.isEmpty()) {
-        EmptyState(title = "No version history yet", description = "Version changes will be recorded as they're detected.")
-        return
-    }
+    val updateCount = state.versionHistory.size
+
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             AtmCard {
                 Text("Current Version", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(12.dp))
-                InfoRow("Version Name", state.app?.versionName ?: "—")
-                InfoRow("Version Code", state.app?.versionCode?.toString() ?: "—")
-                InfoRow("Updates recorded", state.versionHistory.size.toString())
+                Spacer(Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Ring here reads as an "update activity" dial: full
+                    // circle at a cap of 10 tracked updates, mostly a
+                    // stylistic echo of the Overview rings rather than a
+                    // literal percentage — this tab has no natural 0..1
+                    // quantity, so the ring shows update *count* momentum.
+                    RingProgress(
+                        progress = (updateCount / 10f).coerceIn(0f, 1f),
+                        modifier = Modifier.size(88.dp),
+                        progressColor = ColorVersion,
+                        centerContent = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(updateCount.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("updates", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    )
+                    Spacer(Modifier.width(20.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        InfoRow("Version Name", state.app?.versionName ?: "—")
+                        InfoRow("Version Code", state.app?.versionCode?.toString() ?: "—")
+                    }
+                }
             }
         }
         item {
             Text("History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
         }
-        items(state.versionHistory.sortedByDescending { it.changedAt }, key = { it.versionHistoryId }) { entry ->
-            AtmCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(8.dp)
-                            .background(Color(0xFF4A5FE8), androidx.compose.foundation.shape.CircleShape)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text("${entry.oldVersionName ?: "—"} → ${entry.newVersionName}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        if (state.versionHistory.isEmpty()) {
+            item {
+                EmptyStateWithIcon(title = "No version history yet", description = "Version changes will be recorded as they're detected.")
+            }
+        } else {
+            items(state.versionHistory.sortedByDescending { it.changedAt }, key = { it.versionHistoryId }) { entry ->
+                AtmCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(8.dp)
+                                .background(ColorVersion, androidx.compose.foundation.shape.CircleShape)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("${entry.oldVersionName ?: "—"} → ${entry.newVersionName}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(Formatters.dateTime(entry.changedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Spacer(Modifier.height(2.dp))
-                Text(Formatters.dateTime(entry.changedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -390,15 +424,39 @@ private fun VersionTab(state: AppDetailsUiState) {
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun PermissionsTab(state: AppDetailsUiState) {
+    val grantedCount = state.grantedPermissions.size
+
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             AtmCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Currently Granted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    // Same "count dial" treatment as Version — caps
+                    // visually at 20 granted permissions, just gives the
+                    // number a shape rather than implying a target.
+                    RingProgress(
+                        progress = (grantedCount / 20f).coerceIn(0f, 1f),
+                        modifier = Modifier.size(64.dp),
+                        strokeWidthDp = 8.dp,
+                        progressColor = MaterialTheme.colorScheme.primary,
+                        centerContent = {
+                            Text(grantedCount.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Currently Granted", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text(
+                            "$grantedCount permission${if (grantedCount == 1) "" else "s"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 if (state.grantedPermissions.isEmpty()) {
                     Text(
                         "No permissions currently granted.",
@@ -422,10 +480,14 @@ private fun PermissionsTab(state: AppDetailsUiState) {
             }
         }
 
-        if (state.permissionHistory.isNotEmpty()) {
+        item {
+            Text("History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+        }
+        if (state.permissionHistory.isEmpty()) {
             item {
-                Text("History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+                EmptyStateWithIcon(title = "No permission changes yet", description = "Permission changes will be recorded as they're detected.")
             }
+        } else {
             items(state.permissionHistory.sortedByDescending { it.changedAt }, key = { it.permissionHistoryId }) { entry ->
                 val granted = entry.currentState == PermissionState.GRANTED
                 AtmCard {
@@ -443,10 +505,6 @@ private fun PermissionsTab(state: AppDetailsUiState) {
                     Text(Formatters.dateTime(entry.changedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        } else {
-            item {
-                EmptyState(title = "No permission changes yet", description = "Permission changes will be recorded as they're detected.")
-            }
         }
     }
 }
@@ -460,7 +518,7 @@ private fun UsageAccessNotice(inCard: Boolean = false) {
             Column {
                 Text("Usage Access needed", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 Text(
-                    "Grant Usage Access in Settings to see storage and usage for this app.",
+                    "Grant Usage Access in Settings to see real storage and usage numbers here.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -468,6 +526,31 @@ private fun UsageAccessNotice(inCard: Boolean = false) {
         }
     }
     if (inCard) AtmCard { content() } else content()
+}
+
+/** Small icon + title + description block for genuinely list-shaped empty states (history rows with no natural "zero" visual). */
+@Composable
+private fun EmptyStateWithIcon(title: String, description: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(32.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
 }
 
 @Composable
