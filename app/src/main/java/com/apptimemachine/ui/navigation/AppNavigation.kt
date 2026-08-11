@@ -114,8 +114,19 @@ fun AppNavigation() {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
+            // Scan Now bar only makes sense as a persistent shortcut on the
+            // two screens it was asked for — Dashboard and Timeline — not
+            // on Apps, Settings, or any pushed screen (Details/Search/etc).
+            val showScanBar = currentDestination?.hierarchy?.any {
+                it.route == TopLevelDestination.Dashboard.route || it.route == TopLevelDestination.Timeline.route
+            } == true
+
             Column {
-                GlobalScanBar(isScanning = isScanning, onScan = scanViewModel::runManualScan)
+                if (showScanBar) {
+                    GlobalScanBar(isScanning = isScanning, onScan = scanViewModel::runManualScan)
+                }
                 AppBottomBar(navController)
             }
         }
@@ -173,11 +184,10 @@ fun AppNavigation() {
 }
 
 /**
- * Persistent "Scan Now" pill — rendered above the bottom nav on every
- * screen (Part of the always-visible manual scan entry point), not just
- * Dashboard's Quick Actions. Tapping it runs a real scan via
- * [GlobalScanViewModel]; the icon spins while scanning and a Snackbar
- * reports what changed once it finishes.
+ * Persistent "Scan Now" pill — rendered above the bottom nav on Dashboard
+ * and Timeline only (see [AppNavigation]'s `showScanBar` check). Tapping
+ * it runs a real scan via [GlobalScanViewModel]; the icon spins while
+ * scanning and a Snackbar reports what changed once it finishes.
  */
 @Composable
 private fun GlobalScanBar(isScanning: Boolean, onScan: () -> Unit) {
@@ -189,60 +199,66 @@ private fun GlobalScanBar(isScanning: Boolean, onScan: () -> Unit) {
         label = "scan_spin_angle"
     )
 
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp)
-            .clip(RoundedCornerShape(50))
-            .clickable(enabled = !isScanning, onClick = onScan),
-        color = MaterialTheme.colorScheme.primary,
-        shape = RoundedCornerShape(50),
-        shadowElevation = 4.dp
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
+        Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .widthIn(min = 190.dp)
+                .clip(RoundedCornerShape(50))
+                .clickable(enabled = !isScanning, onClick = onScan),
+            color = com.apptimemachine.ui.theme.BrandColors.ScanBar,
+            shape = RoundedCornerShape(50),
+            shadowElevation = 4.dp
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.Radar,
-                    contentDescription = null,
-                    tint = Color.White,
+                Box(
                     modifier = Modifier
-                        .size(19.dp)
-                        .rotate(if (isScanning) rotation else 0f)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    if (isScanning) "Scanning…" else "Scan Now",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    if (isScanning) "Checking apps for changes" else "Start a new scan",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-            if (isScanning) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = Color.White
-                )
-            } else {
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White)
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Radar,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(19.dp)
+                            .rotate(if (isScanning) rotation else 0f)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        if (isScanning) "Scanning…" else "Scan Now",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        if (isScanning) "Checking apps…" else "Start a new scan",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+                if (isScanning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                } else {
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White)
+                }
             }
         }
     }
