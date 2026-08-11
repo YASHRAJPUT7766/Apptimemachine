@@ -22,7 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -116,28 +116,25 @@ fun AppNavigation() {
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
-            // Scan Now bar only makes sense as a persistent shortcut on the
-            // two screens it was asked for — Dashboard and Timeline — not
-            // on Apps, Settings, or any pushed screen (Details/Search/etc).
-            val showScanBar = currentDestination?.hierarchy?.any {
-                it.route == TopLevelDestination.Dashboard.route || it.route == TopLevelDestination.Timeline.route
-            } == true
+            val isTopLevel = bottomNavItems.any { item ->
+                currentDestination?.hierarchy?.any { it.route == item.route } == true
+            }
 
-            // A Box (not a Column) so the pill can float ON TOP of the nav
-            // bar's own boundary instead of sitting in its own separate
-            // strip — half tucked into the nav bar, half over the content,
-            // with nothing but the pill's own surface behind it. No extra
-            // full-width colored band that could clash with the page
-            // scrolled behind it.
+            // Box (not Column): the four real nav destinations render as a
+            // normal Material3 NavigationBar; the Scan action floats as a
+            // raised circular button centered over the boundary between
+            // item 2 and 3 (Timeline/Apps) — same visual slot as a 5th nav
+            // icon, without adding a 5th route (still exactly four
+            // bottom-nav destinations per the nav spec above).
             Box(modifier = Modifier.fillMaxWidth()) {
                 AppBottomBar(navController)
-                if (showScanBar) {
-                    GlobalScanBar(
+                if (isTopLevel) {
+                    ScanFab(
                         isScanning = isScanning,
                         onScan = scanViewModel::runManualScan,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .offset(y = (-26).dp)
+                            .offset(y = (-34).dp)
                     )
                 }
             }
@@ -196,76 +193,83 @@ fun AppNavigation() {
 }
 
 /**
- * Persistent "Scan Now" pill — rendered above the bottom nav on Dashboard
- * and Timeline only (see [AppNavigation]'s `showScanBar` check). Tapping
- * it runs a real scan via [GlobalScanViewModel]; the icon spins while
- * scanning and a Snackbar reports what changed once it finishes.
+ * Raised circular "Scan" button — floats centered over the bottom nav,
+ * between Timeline and Apps, like a 5th nav icon (bigger + higher than a
+ * normal item, with a soft breathing glow so it reads as the primary
+ * action). Tapping it runs a real scan via [GlobalScanViewModel]; the
+ * icon spins while scanning and a Snackbar reports what changed once it
+ * finishes.
  */
 @Composable
-private fun GlobalScanBar(isScanning: Boolean, onScan: () -> Unit, modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "scan_spin")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(1100, easing = LinearEasing), repeatMode = RepeatMode.Restart),
-        label = "scan_spin_angle"
+private fun ScanFab(isScanning: Boolean, onScan: () -> Unit, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "scan_fab")
+    // Slow breathing glow halo behind the button, always on — bigger pulse
+    // while actively scanning so the button reads as "working" (the spin
+    // itself comes from the CircularProgressIndicator swapped in below).
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = if (isScanning) 0.35f else 0.18f,
+        targetValue = if (isScanning) 0.75f else 0.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isScanning) 550 else 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scan_glow_alpha"
+    )
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isScanning) 550 else 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scan_glow_scale"
     )
 
-    Surface(
-        modifier = modifier
-            .widthIn(min = 190.dp)
-            .clip(RoundedCornerShape(50))
-            .clickable(enabled = !isScanning, onClick = onScan),
-        color = com.apptimemachine.ui.theme.BrandColors.ScanBar,
-        shape = RoundedCornerShape(50),
-        shadowElevation = 6.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.Center) {
+            // Glow halo
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(76.dp)
+                    .graphicsLayer { scaleX = glowScale; scaleY = glowScale; alpha = glowAlpha }
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
+                    .background(com.apptimemachine.ui.theme.BrandColors.ScanBar)
+            )
+            // Button itself — noticeably bigger than a normal nav icon
+            Surface(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = !isScanning, onClick = onScan),
+                color = com.apptimemachine.ui.theme.BrandColors.ScanBar,
+                shape = CircleShape,
+                shadowElevation = 8.dp
             ) {
-                Icon(
-                    Icons.Default.Radar,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(19.dp)
-                        .rotate(if (isScanning) rotation else 0f)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    if (isScanning) "Scanning…" else "Scan Now",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    if (isScanning) "Checking apps…" else "Start a new scan",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-            Spacer(Modifier.width(14.dp))
-            if (isScanning) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = Color.White
-                )
-            } else {
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White)
+                Box(contentAlignment = Alignment.Center) {
+                    if (isScanning) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(26.dp),
+                            strokeWidth = 2.5.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Radar,
+                            contentDescription = "Scan Now",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
             }
         }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (isScanning) "Scanning…" else "Scan",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = com.apptimemachine.ui.theme.BrandColors.ScanBar
+        )
     }
 }
 
