@@ -16,24 +16,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Brand palette: indigo primary (matches the launcher icon / reference
-// design), warm neutral secondary, purple tertiary for variety in charts
-// and category chips. Full schemes are hand-tuned below rather than left
-// to lightColorScheme()/darkColorScheme() defaults, which only derive
-// tonal surfaces from primary and tend to read flat/muddy — this is the
-// "ajeeb" (odd) look on Home that needed fixing.
-private val SeedPrimary = Color(0xFF4A5FE8)
+// Brand palette: forest-green primary (matches the reference design's
+// hero card, active badge, and accent color throughout), warm neutral
+// secondary, a slightly lighter green tertiary so the hero gradient reads
+// as green-to-green rather than green-to-purple. Full schemes are
+// hand-tuned below rather than left to lightColorScheme()/darkColorScheme()
+// defaults, which only derive tonal surfaces from primary and tend to
+// read flat/muddy — this is the "ajeeb" (odd) look on Home that needed fixing.
+private val SeedPrimary = Color(0xFF2E7D32)
 private val SeedOnPrimary = Color(0xFFFFFFFF)
-private val SeedPrimaryContainer = Color(0xFFE0E3FF)
-private val SeedOnPrimaryContainer = Color(0xFF00105C)
+private val SeedPrimaryContainer = Color(0xFFD7F0D9)
+private val SeedOnPrimaryContainer = Color(0xFF08350F)
 
-private val SeedSecondary = Color(0xFF5B5D72)
-private val SeedSecondaryContainer = Color(0xFFE0E1F9)
-private val SeedOnSecondaryContainer = Color(0xFF181A2C)
+private val SeedSecondary = Color(0xFF57624F)
+private val SeedSecondaryContainer = Color(0xFFDAEBCE)
+private val SeedOnSecondaryContainer = Color(0xFF141F0D)
 
-private val SeedTertiary = Color(0xFF7D5296)
-private val SeedTertiaryContainer = Color(0xFFF6D9FF)
-private val SeedOnTertiaryContainer = Color(0xFF320046)
+private val SeedTertiary = Color(0xFF43A047)
+private val SeedTertiaryContainer = Color(0xFFC8F0C4)
+private val SeedOnTertiaryContainer = Color(0xFF042906)
 
 private val LightColors = lightColorScheme(
     primary = SeedPrimary,
@@ -58,15 +59,15 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFBAC3FF),
-    onPrimary = Color(0xFF10218F),
-    primaryContainer = Color(0xFF2D3EA6),
+    primary = Color(0xFF8BD68F),
+    onPrimary = Color(0xFF00390A),
+    primaryContainer = Color(0xFF0F5C1B),
     onPrimaryContainer = SeedPrimaryContainer,
-    secondary = Color(0xFFC4C5DD),
-    secondaryContainer = Color(0xFF434559),
+    secondary = Color(0xFFBFCFB2),
+    secondaryContainer = Color(0xFF3F4A38),
     onSecondaryContainer = SeedSecondaryContainer,
-    tertiary = Color(0xFFE9B6FF),
-    tertiaryContainer = Color(0xFF633B7B),
+    tertiary = Color(0xFFA3D9A0),
+    tertiaryContainer = Color(0xFF255828),
     onTertiaryContainer = SeedTertiaryContainer,
     background = Color(0xFF131318),
     surface = Color(0xFF131318),
