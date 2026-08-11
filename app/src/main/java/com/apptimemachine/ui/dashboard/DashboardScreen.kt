@@ -1,6 +1,15 @@
 package com.apptimemachine.ui.dashboard
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -322,7 +332,6 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 state.updatesToday.toString(),
                 "Updated Apps",
                 Color(0xFF2E7D32),
-                Color(0xFFE3F3E5),
                 Modifier.weight(1f)
             )
             SummaryTile(
@@ -330,7 +339,6 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 Formatters.signedBytes(state.storageGrowthToday),
                 "Storage Growth",
                 Color(0xFF1565C0),
-                Color(0xFFE4EEFB),
                 Modifier.weight(1f)
             )
             SummaryTile(
@@ -338,7 +346,6 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 (state.permissionsGrantedToday + state.permissionsRevokedToday).toString(),
                 "Permission Changes",
                 Color(0xFFE65100),
-                Color(0xFFFCEADB),
                 Modifier.weight(1f)
             )
             SummaryTile(
@@ -346,7 +353,6 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 state.notificationsToday.toString(),
                 "Notifications",
                 Color(0xFF6A1B9A),
-                Color(0xFFEEE1F5),
                 Modifier.weight(1f)
             )
         }
@@ -358,38 +364,68 @@ private fun SummaryTile(
     icon: ImageVector,
     value: String,
     label: String,
-    iconColor: Color,
-    bgColor: Color,
+    accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    // Entrance pop: tile scales up from 0 with a slight overshoot the first
+    // time it appears, instead of the old flat block just being static.
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val entranceScale by animateFloatAsState(
+        targetValue = if (entered) 1f else 0.6f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "tile_entrance"
+    )
+
+    // Slow breathing glow behind the icon — replaces the old solid pastel
+    // block with a subtle animated halo instead, on the app's normal
+    // adaptive card surface rather than a fixed light-only color.
+    val infiniteTransition = rememberInfiniteTransition(label = "tile_glow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.12f,
+        targetValue = 0.32f,
+        animationSpec = infiniteRepeatable(animation = tween(1600, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
+        label = "tile_glow_alpha"
+    )
+
     Column(
         modifier = modifier
+            .graphicsLayer { scaleX = entranceScale; scaleY = entranceScale }
             .clip(RoundedCornerShape(18.dp))
-            .background(bgColor)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .border(1.dp, accentColor.copy(alpha = 0.18f), RoundedCornerShape(18.dp))
             .padding(vertical = 16.dp, horizontal = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(iconColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = glowAlpha))
+            )
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(accentColor.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
+            }
         }
         Spacer(Modifier.height(10.dp))
         Text(
             value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = com.apptimemachine.ui.theme.BrandColors.TileValueText
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.height(2.dp))
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = com.apptimemachine.ui.theme.BrandColors.TileLabelText,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
