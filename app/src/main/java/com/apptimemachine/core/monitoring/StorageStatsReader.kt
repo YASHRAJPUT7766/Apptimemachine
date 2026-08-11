@@ -49,22 +49,55 @@ class StorageStatsReader @Inject constructor(
      * on any failure rather than throwing, so scans continue for other
      * apps (Part 2.0 Failure Handling).
      */
+    /**
+     * Requires PACKAGE_USAGE_STATS (Usage Access) to succeed for apps other
+     * than the caller itself — this is an Android platform requirement, not
+     * an app design choice. We check hasUsageAccessPermission() up front —
+     * the same gate scanUsage() already used.
+     *
+     * Uses queryStatsForUid() rather than queryStatsForPackage(): the latter
+     * throws NameNotFoundException for some system/vendor apps (observed
+     * with MIUI system packages like com.miui.aod) even when Usage Access
+     * IS granted — Android resolves them under a different UserHandle
+     * internally, so a package+user lookup misses while a raw UID lookup
+     * (which is also the path Android's own docs recommend as faster) finds
+     * them. This is why Storage stayed "Unavailable" for some apps even
+     * after granting Usage Access and running a scan.
+     */
     fun readStorage(packageName: String, uid: Int): RawStorageSnapshot {
         val manager = storageStatsManager ?: return RawStorageSnapshot(null, null, null)
         if (!usageStatsReader.hasUsageAccessPermission()) return RawStorageSnapshot(null, null, null)
 
+        val storageUuid = runCatching {
+            context.packageManager.getApplicationInfo(packageName, 0).storageUuid
+        }.getOrNull() ?: return RawStorageSnapshot(null, null, null)
+
+        // Primary path: queryStatsForUid — works for system/vendor packages
+        // that queryStatsForPackage can't resolve.
+        runCatching {
+            val stats: StorageStats = manager.queryStatsForUid(storageUuid, uid)
+            return RawStorageSnapshot(
+                appSizeBytes = stats.appBytes,
+                dataSizeBytes = stats.dataBytes,
+                cacheSizeBytes = stats.cacheBytes
+            )
+        }.onFailure { e ->
+            android.util.Log.w("StorageStatsReader", "queryStatsForUid failed for $packageName (uid=$uid)", e)
+        }
+
+        // Fallback: queryStatsForPackage, in case a package ever behaves
+        // the other way around (resolvable by name but not by uid).
         return runCatching {
             val userHandle: UserHandle = Process.myUserHandle()
-            val stats: StorageStats = manager.queryStatsForPackage(
-                context.packageManager.getApplicationInfo(packageName, 0).storageUuid,
-                packageName,
-                userHandle
-            )
+            val stats: StorageStats = manager.queryStatsForPackage(storageUuid, packageName, userHandle)
             RawStorageSnapshot(
                 appSizeBytes = stats.appBytes,
                 dataSizeBytes = stats.dataBytes,
                 cacheSizeBytes = stats.cacheBytes
             )
-        }.getOrElse { RawStorageSnapshot(null, null, null) }
+        }.getOrElse { e ->
+            android.util.Log.w("StorageStatsReader", "queryStatsForPackage fallback also failed for $packageName", e)
+            RawStorageSnapshot(null, null, null)
+        }
     }
 }
