@@ -81,6 +81,27 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
+ * Fixed brand colors — deliberately NOT theme.colorScheme.primary/tertiary.
+ * Those two swap to pale mint tones in dark mode (correct for M3 text/icon
+ * roles, since a light color needs to sit on a dark surface) but look
+ * washed-out and "ajeeb" when used as a big filled banner background —
+ * the hero card, the persistent Scan Now bar, and any colored stat tile
+ * with a fixed light pastel background all need a color that stays a rich
+ * green in both light and dark mode instead of following the scheme.
+ */
+object BrandColors {
+    val HeroGradientStart = Color(0xFF1B5E20)
+    val HeroGradientEnd = Color(0xFF2E7D32)
+    val ScanBar = Color(0xFF2E7D32)
+    // Fixed-pastel stat tiles (Today's Summary) always sit on a light
+    // background regardless of app theme, so their text needs a fixed
+    // dark color too — MaterialTheme.colorScheme.onSurface would turn
+    // near-white in dark mode and become unreadable on that light tile.
+    val TileValueText = Color(0xFF1B2A1F)
+    val TileLabelText = Color(0xFF54604F)
+}
+
+/**
  * Part 1.4A Design Style: "Dynamic Color Support", Light/Dark/AMOLED.
  * AMOLED mode forces pure-black surfaces on top of the dark scheme for
  * OLED power savings, per Part 3.2 Appearance settings.
