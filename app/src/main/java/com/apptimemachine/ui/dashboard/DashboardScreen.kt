@@ -66,7 +66,7 @@ fun DashboardScreen(
             item { Box(Modifier.padding(horizontal = 20.dp)) { MonitoringStatusCard(state) } }
             item { Box(Modifier.padding(horizontal = 20.dp)) { TodaysSummaryCard(state) } }
             item { Box(Modifier.padding(horizontal = 20.dp)) { MonitoringOverviewCard(state, onOpenApps) } }
-            item { Box(Modifier.padding(horizontal = 20.dp)) { QuickActionsGrid(state, viewModel, onOpenStatistics, onOpenCompare, onOpenBackup) } }
+            item { Box(Modifier.padding(horizontal = 20.dp)) { QuickActionsGrid(onOpenStatistics, onOpenCompare, onOpenBackup) } }
 
             item {
                 Row(
@@ -235,7 +235,7 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Monitoring Running",
+                    "Monitoring Active",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -320,7 +320,7 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 Modifier.weight(1f)
             )
             SummaryTile(
-                Icons.Default.Inbox,
+                Icons.Default.PhoneAndroid,
                 Formatters.signedBytes(state.storageGrowthToday),
                 "Storage Growth",
                 Color(0xFF1565C0),
@@ -328,7 +328,7 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 Modifier.weight(1f)
             )
             SummaryTile(
-                Icons.Default.VerifiedUser,
+                Icons.Default.GppGood,
                 (state.permissionsGrantedToday + state.permissionsRevokedToday).toString(),
                 "Permission Changes",
                 Color(0xFFE65100),
@@ -339,8 +339,8 @@ private fun TodaysSummaryCard(state: DashboardUiState) {
                 Icons.Default.Notifications,
                 state.notificationsToday.toString(),
                 "Notifications",
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                Color(0xFF6A1B9A),
+                Color(0xFFEEE1F5),
                 Modifier.weight(1f)
             )
         }
@@ -384,7 +384,7 @@ private fun SummaryTile(
     }
 }
 
-/** Installed Apps card — Total / System / User with icon chips and dividers, "View all" header. */
+/** Installed Apps card — donut ring + System/User/Disabled breakdown rows + Top Categories panel, "View all" header. */
 @Composable
 private fun MonitoringOverviewCard(state: DashboardUiState, onOpenApps: () -> Unit) {
     Column {
@@ -401,87 +401,166 @@ private fun MonitoringOverviewCard(state: DashboardUiState, onOpenApps: () -> Un
         }
         Spacer(Modifier.height(8.dp))
         AtmCard(onClick = onOpenApps) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                OverviewStat(Icons.Default.GridView, state.totalApps.toString(), "Total", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                VerticalDivider()
-                OverviewStat(Icons.Default.Settings, state.systemApps.toString(), "System", Color(0xFF1565C0), Color(0xFFE4EEFB))
-                VerticalDivider()
-                OverviewStat(Icons.Default.Person, state.userApps.toString(), "User", Color(0xFF2E7D32), Color(0xFFE3F3E5))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                InstalledAppsDonut(state)
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BreakdownRow(Icons.Default.Settings, "System Apps", state.systemApps, state.totalApps, Color(0xFF1565C0))
+                    BreakdownRow(Icons.Default.Person, "User Apps", state.userApps, state.totalApps, Color(0xFF2E7D32))
+                    BreakdownRow(Icons.Default.VisibilityOff, "Disabled Apps", state.disabledApps, state.totalApps, Color(0xFF757575))
+                }
+            }
+            if (state.topCategories.isNotEmpty()) {
+                Spacer(Modifier.height(18.dp))
+                TopCategoriesPanel(state.topCategories)
             }
         }
     }
 }
 
 @Composable
-private fun VerticalDivider() {
-    Box(
-        modifier = Modifier
-            .height(48.dp)
-            .width(1.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+private fun InstalledAppsDonut(state: DashboardUiState) {
+    val slices = listOf(
+        state.systemApps.toFloat() to Color(0xFF1B5E20),
+        state.userApps.toFloat() to Color(0xFF66BB6A),
+        state.disabledApps.toFloat() to Color(0xFFBDBDBD)
     )
-}
-
-@Composable
-private fun OverviewStat(icon: ImageVector, value: String, label: String, iconColor: Color, bgColor: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(bgColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(19.dp))
+    com.apptimemachine.ui.components.DonutChart(
+        slices = slices,
+        modifier = Modifier.size(112.dp),
+        strokeWidthDp = 14.dp
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(state.totalApps.toString(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "Total Apps",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
-        Spacer(Modifier.height(8.dp))
-        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-/** 2x2 quick-action grid: Statistics, Compare, Backup, and highlighted Scan Now. */
+@Composable
+private fun BreakdownRow(icon: ImageVector, label: String, value: Int, total: Int, color: Color) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Text(value.toString(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(6.dp))
+        val fraction = if (total > 0) (value.toFloat() / total).coerceIn(0f, 1f) else 0f
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(color)
+            )
+        }
+    }
+}
+
+private val categoryIcons: Map<String, Pair<ImageVector, Color>> = mapOf(
+    "Game" to (Icons.Default.SportsEsports to Color(0xFFAD1457)),
+    "Audio" to (Icons.Default.MusicNote to Color(0xFF6A1B9A)),
+    "Video" to (Icons.Default.Videocam to Color(0xFFE65100)),
+    "Image" to (Icons.Default.Image to Color(0xFF00838F)),
+    "Social" to (Icons.Default.Groups to Color(0xFF6A1B9A)),
+    "News" to (Icons.Default.Article to Color(0xFF1565C0)),
+    "Maps" to (Icons.Default.Map to Color(0xFF2E7D32)),
+    "Productivity" to (Icons.Default.Work to Color(0xFF1565C0)),
+    "Others" to (Icons.Default.MoreHoriz to Color(0xFF757575)),
+    "Uncategorized" to (Icons.Default.Apps to Color(0xFF757575))
+)
+
+@Composable
+private fun TopCategoriesPanel(categories: List<CategoryStat>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f))
+            .padding(14.dp)
+    ) {
+        Text("Top Categories", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(10.dp))
+        categories.forEachIndexed { index, stat ->
+            val (icon, color) = categoryIcons[stat.label] ?: (Icons.Default.Apps to MaterialTheme.colorScheme.primary)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(color.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(13.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(stat.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(stat.count.toString(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            }
+            if (index != categories.lastIndex) {
+                Spacer(Modifier.height(2.dp))
+            }
+        }
+    }
+}
+
+
+/** Quick actions row: Statistics, Compare, Backup. Scan Now lives in the persistent bar (see AppNavigation). */
 @Composable
 private fun QuickActionsGrid(
-    state: DashboardUiState,
-    viewModel: DashboardViewModel,
     onOpenStatistics: () -> Unit,
     onOpenCompare: () -> Unit,
     onOpenBackup: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column {
+        Text("Quick Actions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             QuickActionTile(
                 icon = Icons.Default.BarChart,
                 title = "Statistics",
-                subtitle = "View insights",
+                subtitle = "View insights and analytics",
                 onClick = onOpenStatistics,
                 modifier = Modifier.weight(1f)
             )
             QuickActionTile(
                 icon = Icons.Filled.CompareArrows,
                 title = "Compare",
-                subtitle = "Compare changes",
+                subtitle = "Compare changes over time",
                 onClick = onOpenCompare,
                 modifier = Modifier.weight(1f)
             )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             QuickActionTile(
                 icon = Icons.Default.CloudUpload,
                 title = "Backup",
-                subtitle = "Backup apps",
+                subtitle = "Backup your apps securely",
                 onClick = onOpenBackup,
                 modifier = Modifier.weight(1f)
-            )
-            QuickActionTile(
-                icon = if (state.isScanning) null else Icons.Default.Refresh,
-                title = "Scan Now",
-                subtitle = if (state.isScanning) "Scanning…" else "Start new scan",
-                onClick = { viewModel.runManualScan() },
-                modifier = Modifier.weight(1f),
-                highlighted = true,
-                isLoading = state.isScanning
             )
         }
     }
@@ -493,53 +572,44 @@ private fun QuickActionTile(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    highlighted: Boolean = false,
-    isLoading: Boolean = false
+    modifier: Modifier = Modifier
 ) {
-    val bgColor = if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer
-    val contentColor = if (highlighted) Color.White else MaterialTheme.colorScheme.onSurface
-    val subColor = if (highlighted) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-    val chipBg = if (highlighted) Color.White.copy(alpha = 0.18f) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-    val chipTint = if (highlighted) Color.White else MaterialTheme.colorScheme.primary
-
     Card(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(11.dp))
-                    .background(chipBg),
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = chipTint)
-                } else if (icon != null) {
-                    Icon(icon, contentDescription = null, tint = chipTint, modifier = Modifier.size(19.dp))
+                if (icon != null) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
                 }
             }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = contentColor)
-                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = subColor)
-            }
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(chipBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = chipTint, modifier = Modifier.size(16.dp))
-            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 2
+            )
         }
     }
 }

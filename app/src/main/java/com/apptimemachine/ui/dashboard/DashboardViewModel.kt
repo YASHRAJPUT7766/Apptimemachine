@@ -3,6 +3,7 @@ package com.apptimemachine.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.apptimemachine.core.monitoring.MonitoringManager
+import com.apptimemachine.data.dao.CategoryCount
 import com.apptimemachine.data.entities.ScanHistoryEntity
 import com.apptimemachine.data.entities.ScanType
 import com.apptimemachine.data.entities.TimelineEventEntity
@@ -14,12 +15,16 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Inject
 
+data class CategoryStat(val label: String, val count: Int)
+
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val isScanning: Boolean = false,
     val totalApps: Int = 0,
     val systemApps: Int = 0,
     val userApps: Int = 0,
+    val disabledApps: Int = 0,
+    val topCategories: List<CategoryStat> = emptyList(),
     val totalTimelineEvents: Int = 0,
     val eventsToday: Int = 0,
     val recentEvents: List<TimelineEventEntity> = emptyList(),
@@ -34,7 +39,13 @@ data class DashboardUiState(
 
 // Small intermediate groupings keep the final combine() call fully
 // type-safe (no unchecked casts) while staying under practical arity limits.
-private data class AppCounts(val total: Int, val system: Int, val user: Int)
+private data class AppCounts(
+    val total: Int,
+    val system: Int,
+    val user: Int,
+    val disabled: Int,
+    val categories: List<CategoryCount>
+)
 private data class TimelineCounts(val total: Int, val today: Int, val recent: List<TimelineEventEntity>)
 private data class TodayActivity(
     val updates: Int, val granted: Int, val revoked: Int, val notifs: Int, val charging: Int
@@ -68,8 +79,10 @@ class DashboardViewModel @Inject constructor(
     private val appCounts = combine(
         appRepository.observeActiveCount(),
         appRepository.observeSystemAppCount(),
-        appRepository.observeUserAppCount()
-    ) { total, system, user -> AppCounts(total, system, user) }
+        appRepository.observeUserAppCount(),
+        appRepository.observeDisabledCount(),
+        appRepository.observeCategoryBreakdown()
+    ) { total, system, user, disabled, categories -> AppCounts(total, system, user, disabled, categories) }
 
     private val timelineCounts = combine(
         timelineRepository.observeTotalCount(),
@@ -101,6 +114,8 @@ class DashboardViewModel @Inject constructor(
             totalApps = apps.total,
             systemApps = apps.system,
             userApps = apps.user,
+            disabledApps = apps.disabled,
+            topCategories = topCategoryStats(apps.categories),
             totalTimelineEvents = timeline.total,
             eventsToday = timeline.today,
             recentEvents = timeline.recent,
@@ -113,6 +128,16 @@ class DashboardViewModel @Inject constructor(
             chargingSessionsToday = activity.charging
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
+
+    /** Top 4 categories by count, with the remainder folded into "Others" (Dashboard Top Categories panel). */
+    private fun topCategoryStats(categories: List<CategoryCount>): List<CategoryStat> {
+        if (categories.isEmpty()) return emptyList()
+        val top = categories.take(4)
+        val rest = categories.drop(4).sumOf { it.count }
+        val stats = top.map { CategoryStat(it.category, it.count) }.toMutableList()
+        if (rest > 0) stats += CategoryStat("Others", rest)
+        return stats
+    }
 
     fun runManualScan() {
         viewModelScope.launch {
