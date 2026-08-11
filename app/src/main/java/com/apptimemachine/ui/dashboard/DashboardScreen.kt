@@ -431,10 +431,13 @@ private fun MonitoringOverviewCard(state: DashboardUiState, onOpenApps: () -> Un
 
 @Composable
 private fun InstalledAppsDonut(state: DashboardUiState) {
+    // Matches the colors used in the BreakdownRow list below it
+    // (blue/green/grey) instead of three shades of the same green —
+    // each segment should read as its own distinct color, not a monotone ring.
     val slices = listOf(
-        state.systemApps.toFloat() to Color(0xFF1B5E20),
-        state.userApps.toFloat() to Color(0xFF66BB6A),
-        state.disabledApps.toFloat() to Color(0xFFBDBDBD)
+        state.systemApps.toFloat() to Color(0xFF1565C0),
+        state.userApps.toFloat() to Color(0xFF2E7D32),
+        state.disabledApps.toFloat() to Color(0xFF9E9E9E)
     )
     com.apptimemachine.ui.components.DonutChart(
         slices = slices,
@@ -557,6 +560,7 @@ private fun QuickActionsGrid(
                 title = "Statistics",
                 subtitle = "View insights and analytics",
                 onClick = onOpenStatistics,
+                accentColor = Color(0xFF1565C0),
                 modifier = Modifier.weight(1f)
             )
             QuickActionTile(
@@ -564,6 +568,7 @@ private fun QuickActionsGrid(
                 title = "Compare",
                 subtitle = "Compare changes over time",
                 onClick = onOpenCompare,
+                accentColor = Color(0xFF6A1B9A),
                 modifier = Modifier.weight(1f)
             )
             QuickActionTile(
@@ -571,6 +576,7 @@ private fun QuickActionsGrid(
                 title = "Backup",
                 subtitle = "Backup your apps securely",
                 onClick = onOpenBackup,
+                accentColor = Color(0xFFE65100),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -583,6 +589,7 @@ private fun QuickActionTile(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -599,11 +606,11 @@ private fun QuickActionTile(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(11.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                    .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (icon != null) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(19.dp))
                 }
             }
             Spacer(Modifier.height(10.dp))
