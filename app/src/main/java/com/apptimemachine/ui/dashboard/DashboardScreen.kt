@@ -213,7 +213,7 @@ private fun greeting(): String {
  * Glassmorphic neon hero card — dark navy glass, animated cyan pulse ring
  * around the monitor icon, soft glow border, and a pill toggle on the
  * right instead of the old solid green banner. A separate glass strip of
- * 3 stat tiles (Last Scan / Timeline Events / Today's Events) sits below,
+ * 3 stat tiles (Last Update / Timeline Events / Today's Events) sits below,
  * each with its own colored glow (cyan / purple / amber) like distinct
  * glass panels rather than one flat block.
  */
@@ -375,7 +375,7 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
         GlassStatTile(
             icon = Icons.Default.Schedule,
             value = state.lastScan?.finishTime?.let { Formatters.relativeTime(it) } ?: "—",
-            label = "Last Scan",
+            label = "Last Update",
             glowColor = Color(0xFF0F8FCB),
             isDark = isDark,
             modifier = Modifier.weight(1f)
@@ -732,7 +732,7 @@ private fun TopCategoriesPanel(categories: List<CategoryStat>) {
 }
 
 
-/** Quick actions row: Statistics, Compare, Backup. Scan Now lives in the persistent bar (see AppNavigation). */
+/** Quick actions row: Statistics, Compare, Backup. */
 @Composable
 private fun QuickActionsGrid(
     onOpenStatistics: () -> Unit,

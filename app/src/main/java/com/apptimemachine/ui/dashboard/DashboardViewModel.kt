@@ -2,15 +2,12 @@ package com.apptimemachine.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.apptimemachine.core.monitoring.MonitoringManager
 import com.apptimemachine.data.dao.CategoryCount
 import com.apptimemachine.data.entities.ScanHistoryEntity
-import com.apptimemachine.data.entities.ScanType
 import com.apptimemachine.data.entities.TimelineEventEntity
 import com.apptimemachine.data.repository.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Inject
@@ -19,7 +16,6 @@ data class CategoryStat(val label: String, val count: Int)
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
-    val isScanning: Boolean = false,
     val totalApps: Int = 0,
     val systemApps: Int = 0,
     val userApps: Int = 0,
@@ -66,15 +62,12 @@ class DashboardViewModel @Inject constructor(
     private val permissionRepository: PermissionRepository,
     private val notificationRepository: NotificationRepository,
     private val batteryRepository: BatteryRepository,
-    private val scanRepository: ScanRepository,
-    private val monitoringManager: MonitoringManager
+    private val scanRepository: ScanRepository
 ) : ViewModel() {
 
     private val startOfDay: Long
         get() = LocalDate.now(ZoneOffset.systemDefault())
             .atStartOfDay(ZoneOffset.systemDefault()).toInstant().toEpochMilli()
-
-    private val _isScanning = MutableStateFlow(false)
 
     private val appCounts = combine(
         appRepository.observeActiveCount(),
@@ -106,11 +99,10 @@ class DashboardViewModel @Inject constructor(
     ) { lastScan, growth -> ScanAndGrowth(lastScan, growth) }
 
     val uiState: StateFlow<DashboardUiState> = combine(
-        appCounts, timelineCounts, todayActivity, scanAndGrowth, _isScanning
-    ) { apps, timeline, activity, scanGrowth, scanning ->
+        appCounts, timelineCounts, todayActivity, scanAndGrowth
+    ) { apps, timeline, activity, scanGrowth ->
         DashboardUiState(
             isLoading = false,
-            isScanning = scanning,
             totalApps = apps.total,
             systemApps = apps.system,
             userApps = apps.user,
@@ -137,13 +129,5 @@ class DashboardViewModel @Inject constructor(
         val stats = top.map { CategoryStat(it.category, it.count) }.toMutableList()
         if (rest > 0) stats += CategoryStat("Others", rest)
         return stats
-    }
-
-    fun runManualScan() {
-        viewModelScope.launch {
-            _isScanning.value = true
-            runCatching { monitoringManager.performScan(ScanType.MANUAL) }
-            _isScanning.value = false
-        }
     }
 }
