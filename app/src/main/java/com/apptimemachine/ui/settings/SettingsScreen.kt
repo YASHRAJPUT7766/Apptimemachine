@@ -1,5 +1,6 @@
 package com.apptimemachine.ui.settings
 
+import android.content.ActivityNotFoundException
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,11 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.apptimemachine.core.datastore.AppTheme
 import com.apptimemachine.core.datastore.ScanInterval
+import com.apptimemachine.core.monitoring.PermissionHelper
 import com.apptimemachine.data.entities.NotificationPrivacyMode
 import com.apptimemachine.ui.components.AtmCard
 
@@ -118,6 +121,11 @@ fun SettingsScreen(
                     Spacer(Modifier.height(12.dp))
                     ScanIntervalSelector(state.quickScanInterval, viewModel::setQuickScanInterval)
                 }
+            }
+
+            item {
+                SettingsSectionHeader("Reliable Notifications", Icons.Outlined.NotificationsActive)
+                ReliableNotificationsCard()
             }
 
             item {
@@ -225,8 +233,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSectionHeader(title: String, icon: ImageVector) {
-    Row(
+private fun SettingsSectionHeader(title: String, icon: ImageVector) {    Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -346,4 +353,92 @@ private fun privacyModeLabel(mode: NotificationPrivacyMode): String = when (mode
     NotificationPrivacyMode.METADATA_ONLY -> "Metadata Only (Recommended)"
     NotificationPrivacyMode.METADATA_PLUS_TITLE -> "Metadata + Title"
     NotificationPrivacyMode.FULL -> "Full Notification"
+}
+
+/**
+ * Real-time install/uninstall/permission alerts rely on
+ * PackageChangeReceiver waking the app process from a broadcast. Stock
+ * Android's battery optimization exemption alone isn't always enough on
+ * MIUI/Xiaomi devices — MIUI has its own separate "Autostart" permission
+ * that can freeze the app process regardless, which is why notifications
+ * would only ever show up after manually opening the app and scanning.
+ * This card surfaces both toggles with their live-checked status so the
+ * person can fix it once instead of hunting through OEM settings menus.
+ */
+@Composable
+private fun ReliableNotificationsCard() {
+    val context = LocalContext.current
+    var batteryExempt by remember { mutableStateOf(PermissionHelper.isIgnoringBatteryOptimizations(context)) }
+
+    // Re-check whenever the screen resumes (e.g. coming back from Settings).
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                batteryExempt = PermissionHelper.isIgnoringBatteryOptimizations(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    AtmCard {
+        Text(
+            "So install, uninstall, and permission alerts arrive instantly — without needing to open the app or run a scan first.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(14.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SettingsIconChip(Icons.Outlined.BatteryChargingFull)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Battery Optimization", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(
+                    if (batteryExempt) "Exempted — good" else "Not exempted yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (batteryExempt) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
+            }
+            if (!batteryExempt) {
+                FilledTonalButton(onClick = {
+                    context.startActivity(PermissionHelper.batteryOptimizationIntent(context))
+                }) { Text("Fix") }
+            } else {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+
+        if (PermissionHelper.isMiui()) {
+            SettingsDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsIconChip(Icons.Outlined.RocketLaunch)
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("MIUI Autostart", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Xiaomi/Redmi/POCO devices need this turned on separately, or MIUI can freeze the app in the background",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                FilledTonalButton(onClick = {
+                    try {
+                        context.startActivity(PermissionHelper.miuiAutostartIntent())
+                    } catch (e: ActivityNotFoundException) {
+                        // Some MIUI versions rename/move this screen; fall back
+                        // to the general app info page so the person can still
+                        // navigate to autostart manually from there.
+                        context.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = android.net.Uri.parse("package:${context.packageName}")
+                            }
+                        )
+                    }
+                }) { Text("Open") }
+            }
+        }
+    }
 }
