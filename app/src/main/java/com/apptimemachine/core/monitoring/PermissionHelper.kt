@@ -44,4 +44,28 @@ object PermissionHelper {
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = android.net.Uri.parse("package:${context.packageName}")
         }
+
+    /**
+     * MIUI/Xiaomi (and several other OEM skins) have their own "Autostart"
+     * permission on top of stock Android's battery optimization system.
+     * Without it, MIUI can freeze the app process entirely, which silently
+     * blocks the PackageChangeReceiver from waking up on install/uninstall
+     * even when standard battery-optimization exemption is already granted
+     * — this is why real-time notifications only ever fired after opening
+     * the app and running a manual scan. There's no public API for this
+     * screen, so it's opened by package/component name and callers should
+     * fall back to plain Settings if the launch fails (see isMiui()).
+     */
+    fun isMiui(): Boolean {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        return manufacturer.contains("xiaomi")
+    }
+
+    fun miuiAutostartIntent(): Intent =
+        Intent().apply {
+            component = android.content.ComponentName(
+                "com.miui.securitycenter",
+                "com.miui.permcenter.autostart.AutoStartManagementActivity"
+            )
+        }
 }
