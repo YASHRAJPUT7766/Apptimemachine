@@ -247,7 +247,9 @@ class MonitoringManager @Inject constructor(
     ): Int {
         var events = 0
 
-        // Version
+        // Version — recorded in Timeline like every other change, but NOT
+        // notified: only install/uninstall/permission events should
+        // interrupt with a notification, per the user's explicit list.
         comparator.compareVersion(
             existing.appId, raw.packageName, raw.appName, existing.iconCachePath,
             existing, raw, now, scanType, scanId
@@ -260,11 +262,6 @@ class MonitoringManager @Inject constructor(
                     oldVersionCode = existing.versionCode, newVersionCode = raw.versionCode,
                     changeType = VersionChangeType.UPDATED, changedAt = now
                 )
-            )
-            notificationHelper.notifyEvent(
-                notificationId = existing.appId.toInt(),
-                title = "App updated",
-                message = "${raw.appName} was updated to ${raw.versionName ?: "a new version"}"
             )
             events++
         }
