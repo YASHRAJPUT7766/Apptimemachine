@@ -1,6 +1,7 @@
 package com.apptimemachine.core.monitoring
 
 import com.apptimemachine.core.datastore.UserPreferences
+import com.apptimemachine.core.notification.AppNotificationHelper
 import com.apptimemachine.data.entities.*
 import com.apptimemachine.data.repository.*
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +41,8 @@ class MonitoringManager @Inject constructor(
     private val usageRepository: UsageRepository,
     private val networkRepository: NetworkRepository,
     private val scanRepository: ScanRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val notificationHelper: AppNotificationHelper
 ) {
     /**
      * Rule 4/Part 1.1: performs the very first device scan. Every installed
@@ -155,6 +157,11 @@ class MonitoringManager @Inject constructor(
                             removedApp.iconCachePath, now, scanType, scanId
                         )
                     )
+                    notificationHelper.notifyEvent(
+                        notificationId = removedApp.appId.toInt(),
+                        title = "App removed",
+                        message = "${removedApp.appName} was uninstalled"
+                    )
                     eventsGenerated++
                 }.onFailure { errors++ }
             }
@@ -210,6 +217,11 @@ class MonitoringManager @Inject constructor(
                 changeType = VersionChangeType.INSTALLED, changedAt = now
             )
         )
+        notificationHelper.notifyEvent(
+            notificationId = appId.toInt(),
+            title = "New app installed",
+            message = "${raw.appName} was just installed"
+        )
         return 1
     }
 
@@ -221,6 +233,11 @@ class MonitoringManager @Inject constructor(
             comparator.buildReinstalledEvent(
                 existing.appId, raw.packageName, raw.appName, existing.iconCachePath, now, scanType, scanId
             )
+        )
+        notificationHelper.notifyEvent(
+            notificationId = existing.appId.toInt(),
+            title = "App reinstalled",
+            message = "${raw.appName} was reinstalled"
         )
         return 1
     }
@@ -243,6 +260,11 @@ class MonitoringManager @Inject constructor(
                     oldVersionCode = existing.versionCode, newVersionCode = raw.versionCode,
                     changeType = VersionChangeType.UPDATED, changedAt = now
                 )
+            )
+            notificationHelper.notifyEvent(
+                notificationId = existing.appId.toInt(),
+                title = "App updated",
+                message = "${raw.appName} was updated to ${raw.versionName ?: "a new version"}"
             )
             events++
         }
@@ -267,6 +289,11 @@ class MonitoringManager @Inject constructor(
         if (permissionResults.isNotEmpty()) {
             timelineRepository.insertAll(permissionResults.map { it.first })
             permissionRepository.insertAll(permissionResults.map { it.second })
+            notificationHelper.notifyEvent(
+                notificationId = existing.appId.toInt(),
+                title = "Permission change",
+                message = "${raw.appName} permissions changed (${permissionResults.size})"
+            )
             events += permissionResults.size
         }
 
