@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -250,10 +251,21 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
         label = "border_glow"
     )
 
-    val glassBg = Brush.linearGradient(
-        colors = listOf(Color(0xFF0E1B2E), Color(0xFF13233A))
-    )
-    val cyan = Color(0xFF3FD9FF)
+    // Theme-aware glass: dark mode keeps the deep-navy neon look; light
+    // mode switches to a frosted white/blue-tinted glass instead of
+    // reusing the same near-black gradient (which is why it looked like a
+    // plain black card in light mode before).
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme() ||
+        MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    val glassBg = if (isDark) {
+        Brush.linearGradient(colors = listOf(Color(0xFF0E1B2E), Color(0xFF13233A)))
+    } else {
+        Brush.linearGradient(colors = listOf(Color(0xFFEAF3FF), Color(0xFFDCEBFF)))
+    }
+    val cyan = Color(0xFF0F8FCB)
+    val onGlassPrimary = if (isDark) Color.White else Color(0xFF0B2540)
+    val onGlassSecondary = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF3A5975)
 
     // Everything (hero card + stat strip) lives inside ONE outer Column so
     // this whole function is a single root composable — the caller wraps
@@ -265,7 +277,7 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .background(glassBg)
-            .border(1.dp, cyan.copy(alpha = borderGlow), RoundedCornerShape(24.dp))
+            .border(1.dp, cyan.copy(alpha = if (isDark) borderGlow else borderGlow * 0.6f), RoundedCornerShape(24.dp))
             .padding(20.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -285,14 +297,14 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(cyan.copy(alpha = 0.14f))
+                        .background(cyan.copy(alpha = if (isDark) 0.14f else 0.16f))
                         .border(1.5.dp, cyan.copy(alpha = 0.5f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.MonitorHeart,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (isDark) Color.White else cyan,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -304,7 +316,7 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
                         "Monitoring ",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = onGlassPrimary
                     )
                     Text(
                         "Active",
@@ -316,15 +328,18 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
                 Text(
                     "Your system is being monitored in real-time",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.65f)
+                    color = onGlassSecondary
                 )
             }
             // Pill toggle — green dot + "Active" label, glass background.
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFF1A3A2E).copy(alpha = 0.8f))
-                    .border(1.dp, Color(0xFF4CD964).copy(alpha = 0.4f), RoundedCornerShape(50))
+                    .background(
+                        if (isDark) Color(0xFF1A3A2E).copy(alpha = 0.8f)
+                        else Color(0xFFDFF5E6)
+                    )
+                    .border(1.dp, Color(0xFF2E9E5B).copy(alpha = 0.45f), RoundedCornerShape(50))
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -332,10 +347,15 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF4CD964))
+                            .background(Color(0xFF2E9E5B))
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Active", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Active",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isDark) Color.White else Color(0xFF1B5E3A),
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -351,21 +371,24 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
             icon = Icons.Default.Schedule,
             value = state.lastScan?.finishTime?.let { Formatters.relativeTime(it) } ?: "—",
             label = "Last Scan",
-            glowColor = Color(0xFF3FD9FF),
+            glowColor = Color(0xFF0F8FCB),
+            isDark = isDark,
             modifier = Modifier.weight(1f)
         )
         GlassStatTile(
             icon = Icons.Filled.TrendingUp,
             value = state.totalTimelineEvents.toString(),
             label = "Timeline Events",
-            glowColor = Color(0xFFB25CFF),
+            glowColor = Color(0xFF9B4FE0),
+            isDark = isDark,
             modifier = Modifier.weight(1f)
         )
         GlassStatTile(
             icon = Icons.Default.Notifications,
             value = state.eventsToday.toString(),
             label = "Today's Events",
-            glowColor = Color(0xFFFFB238),
+            glowColor = Color(0xFFD98D1E),
+            isDark = isDark,
             modifier = Modifier.weight(1f)
         )
     }
@@ -378,6 +401,7 @@ private fun GlassStatTile(
     value: String,
     label: String,
     glowColor: Color,
+    isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
     val infinite = rememberInfiniteTransition(label = "glass_tile_glow")
@@ -387,15 +411,20 @@ private fun GlassStatTile(
         animationSpec = infiniteRepeatable(animation = tween(1700, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
         label = "glass_tile_glow_alpha"
     )
-    val glassBg = Brush.linearGradient(
-        colors = listOf(Color(0xFF11213A), Color(0xFF0C1830))
-    )
+    val glassBg = if (isDark) {
+        Brush.linearGradient(colors = listOf(Color(0xFF11213A), Color(0xFF0C1830)))
+    } else {
+        Brush.linearGradient(colors = listOf(Color(0xFFF3F8FF), Color(0xFFE7F0FF)))
+    }
+    val textPrimary = if (isDark) Color.White else Color(0xFF0B2540)
+    val textSecondary = if (isDark) Color.White.copy(alpha = 0.6f) else Color(0xFF4A6480)
+    val iconTint = if (isDark) Color.White else glowColor
 
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .background(glassBg)
-            .border(1.dp, glowColor.copy(alpha = 0.28f), RoundedCornerShape(20.dp))
+            .border(1.dp, glowColor.copy(alpha = if (isDark) 0.28f else 0.35f), RoundedCornerShape(20.dp))
             .padding(vertical = 16.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -414,16 +443,16 @@ private fun GlassStatTile(
                     .border(1.dp, glowColor.copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textPrimary, maxLines = 1)
         Spacer(Modifier.height(2.dp))
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.6f),
+            color = textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 1
         )
