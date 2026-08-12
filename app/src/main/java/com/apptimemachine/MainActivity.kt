@@ -39,12 +39,20 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        /** Set on the tap intent by AppNotificationHelper for event alerts. */
+        const val EXTRA_OPEN_TIMELINE = "open_timeline"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
         var isReady = false
         splashScreen.setKeepOnScreenCondition { !isReady }
+
+        val openTimeline = intent?.getBooleanExtra(EXTRA_OPEN_TIMELINE, false) ?: false
 
         enableEdgeToEdge()
         setContent {
@@ -67,13 +75,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            RootContent(onReady = { isReady = true })
+            RootContent(onReady = { isReady = true }, openTimelineOnStart = openTimeline)
         }
     }
 }
 
 @Composable
-private fun RootContent(onReady: () -> Unit, viewModel: RootViewModel = hiltViewModel()) {
+private fun RootContent(
+    onReady: () -> Unit,
+    openTimelineOnStart: Boolean = false,
+    viewModel: RootViewModel = hiltViewModel()
+) {
     val theme by viewModel.theme.collectAsState(initial = AppTheme.SYSTEM)
     val dynamicColor by viewModel.dynamicColor.collectAsState(initial = false)
     val amoledMode by viewModel.amoledMode.collectAsState(initial = false)
@@ -98,7 +110,7 @@ private fun RootContent(onReady: () -> Unit, viewModel: RootViewModel = hiltView
                     CircularProgressIndicator(Modifier.align(Alignment.Center))
                 }
                 false -> OnboardingScreen(onFinished = { viewModel.refreshOnboardingState() })
-                true -> AppNavigation()
+                true -> AppNavigation(openTimelineOnStart = openTimelineOnStart)
             }
         }
     }
