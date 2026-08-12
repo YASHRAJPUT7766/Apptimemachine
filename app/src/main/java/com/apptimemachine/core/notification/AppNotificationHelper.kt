@@ -67,6 +67,9 @@ class AppNotificationHelper @Inject constructor(
 
         val tapIntent = android.content.Intent(context, MainActivity::class.java).apply {
             flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // Tapping the notification opens straight to Timeline instead
+            // of Dashboard, since that's where the actual event detail lives.
+            putExtra(MainActivity.EXTRA_OPEN_TIMELINE, true)
         }
         val pendingIntent = android.app.PendingIntent.getActivity(
             context, notificationId, tapIntent,
