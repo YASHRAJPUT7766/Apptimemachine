@@ -255,6 +255,11 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
     )
     val cyan = Color(0xFF3FD9FF)
 
+    // Everything (hero card + stat strip) lives inside ONE outer Column so
+    // this whole function is a single root composable — the caller wraps
+    // it in a Box, and a Box stacks/overlaps multiple root children, which
+    // was causing the hero card and stat row to render on top of each other.
+    Column(modifier = Modifier.fillMaxWidth()) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -364,6 +369,7 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
             modifier = Modifier.weight(1f)
         )
     }
+    } // end outer Column
 }
 
 @Composable
