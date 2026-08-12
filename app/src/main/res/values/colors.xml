@@ -10,4 +10,8 @@
     <color name="warning">#ED6C02</color>
     <color name="error">#D32F2F</color>
     <color name="info">#0288D1</color>
+
+    <!-- Splash screen background only — plain white plate behind the
+         full-color blue shield-eye logo, not the green brand color. -->
+    <color name="splash_background">#FFFFFF</color>
 </resources>

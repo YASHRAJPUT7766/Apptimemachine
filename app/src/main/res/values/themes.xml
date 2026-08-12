@@ -8,13 +8,14 @@
 
     <!-- Branded system splash (Android 12+ SplashScreen API, set as the
          launch theme in the manifest and consumed via
-         installSplashScreen() in MainActivity). Brand-indigo background,
-         white clock glyph, "Demoniter" as the window background icon —
-         replaces what was previously a blank system-default flash. -->
+         installSplashScreen() in MainActivity). Plain white background
+         with the full-color blue shield-eye logo — not the green brand
+         color, so the logo's own blue reads correctly instead of a white
+         silhouette on a colored plate. -->
     <style name="Theme.AppTimeMachine.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/seed_primary</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
-        <item name="windowSplashScreenIconBackgroundColor">@color/seed_primary</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
         <item name="postSplashScreenTheme">@style/Theme.AppTimeMachine</item>
     </style>
 </resources>
