@@ -93,8 +93,17 @@ private const val ROUTE_BACKUP = "backup"
 private const val ROUTE_REPORTS = "reports"
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(openTimelineOnStart: Boolean = false) {
     val navController = rememberNavController()
+
+    // Deep-link from a tapped event notification (see AppNotificationHelper)
+    // — jumps straight to Timeline once the NavHost exists, instead of
+    // landing on Dashboard and making the person tap Timeline themselves.
+    LaunchedEffect(openTimelineOnStart) {
+        if (openTimelineOnStart) {
+            navController.navigateToTopLevel(TopLevelDestination.Timeline.route)
+        }
+    }
 
     // Activity-scoped (created once, outside the NavHost's own back-stack
     // entries) so it — and the persistent bar below — survive navigating
