@@ -6,12 +6,15 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
+import com.apptimemachine.core.monitoring.MonitoringManager
 import com.apptimemachine.core.utils.Formatters
 import com.apptimemachine.data.entities.EventCategory
+import com.apptimemachine.data.entities.ScanType
 import com.apptimemachine.data.entities.TimelineEventEntity
 import com.apptimemachine.data.repository.TimelineRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** A row the Timeline LazyColumn can render — either a real event or a day-section header. */
@@ -31,11 +34,31 @@ val TIMELINE_FILTER_CATEGORIES = listOf(
 /** Part 3.6 Timeline Engine UI state — filter selection drives which paged query is active. */
 @HiltViewModel
 class TimelineViewModel @Inject constructor(
-    private val timelineRepository: TimelineRepository
+    private val timelineRepository: TimelineRepository,
+    private val monitoringManager: MonitoringManager
 ) : ViewModel() {
 
     private val _selectedCategory = MutableStateFlow<EventCategory?>(null)
     val selectedCategory: StateFlow<EventCategory?> = _selectedCategory.asStateFlow()
+
+    // Pull-to-refresh state (Part 1.4A: no automatic background broadcast
+    // reliably fires an update, so the person swipes down to trigger a
+    // fresh manual scan on demand — same performScan() path the old
+    // "Scan Now" button used, just driven by the gesture instead).
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    fun refresh() {
+        if (_isRefreshing.value) return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                monitoringManager.performScan(ScanType.MANUAL)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
 
     val pagedEvents: Flow<PagingData<TimelineListItem>> = _selectedCategory
         .flatMapLatest { category ->
