@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Plain white plate behind the new shield-eye logo, matching the
+     logo's own white background instead of the old blue solid fill. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#4A5FE8" />
+    <solid android:color="#FFFFFF" />
 </shape>
