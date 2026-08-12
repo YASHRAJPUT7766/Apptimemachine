@@ -2,12 +2,15 @@ package com.apptimemachine.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apptimemachine.core.monitoring.MonitoringManager
 import com.apptimemachine.data.dao.CategoryCount
 import com.apptimemachine.data.entities.ScanHistoryEntity
+import com.apptimemachine.data.entities.ScanType
 import com.apptimemachine.data.entities.TimelineEventEntity
 import com.apptimemachine.data.repository.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Inject
@@ -62,8 +65,29 @@ class DashboardViewModel @Inject constructor(
     private val permissionRepository: PermissionRepository,
     private val notificationRepository: NotificationRepository,
     private val batteryRepository: BatteryRepository,
-    private val scanRepository: ScanRepository
+    private val scanRepository: ScanRepository,
+    private val monitoringManager: MonitoringManager
 ) : ViewModel() {
+
+    // Pull-to-refresh state (Part 1.4A: with the manual "Scan Now" button
+    // removed, swiping down is now the only way to force an on-demand scan;
+    // the underlying repositories are all live Flows already, so a
+    // successful scan is enough to make every card on this screen update
+    // itself — no separate reload call needed here).
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    fun refresh() {
+        if (_isRefreshing.value) return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                monitoringManager.performScan(ScanType.MANUAL)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
 
     private val startOfDay: Long
         get() = LocalDate.now(ZoneOffset.systemDefault())
