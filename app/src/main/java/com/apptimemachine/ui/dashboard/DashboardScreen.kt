@@ -253,10 +253,15 @@ private fun MonitoringStatusCard(state: DashboardUiState) {
 
     // Theme-aware glass: dark mode keeps the deep-navy neon look; light
     // mode switches to a frosted white/blue-tinted glass instead of
-    // reusing the same near-black gradient (which is why it looked like a
-    // plain black card in light mode before).
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme() ||
-        MaterialTheme.colorScheme.background.luminance() < 0.5f
+    // reusing the same near-black gradient. Deliberately NOT using
+    // isSystemInDarkTheme() here — that reflects the phone's system
+    // setting, not the app's own Settings > Theme choice (System/Light/
+    // Dark), so if someone picks "Light" inside the app while their
+    // phone-wide dark mode is on, isSystemInDarkTheme() would still say
+    // true and this card would render dark even though everything else
+    // on screen is light. The actually-resolved MaterialTheme background
+    // luminance always matches what the rest of the screen is doing.
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     val glassBg = if (isDark) {
         Brush.linearGradient(colors = listOf(Color(0xFF0E1B2E), Color(0xFF13233A)))
