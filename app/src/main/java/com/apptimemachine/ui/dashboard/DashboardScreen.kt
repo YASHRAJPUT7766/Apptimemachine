@@ -208,116 +208,227 @@ private fun greeting(): String {
     }
 }
 
-/** Gradient hero card — monitoring status, pulse icon, and the 3-stat strip. */
+/**
+ * Glassmorphic neon hero card — dark navy glass, animated cyan pulse ring
+ * around the monitor icon, soft glow border, and a pill toggle on the
+ * right instead of the old solid green banner. A separate glass strip of
+ * 3 stat tiles (Last Scan / Timeline Events / Today's Events) sits below,
+ * each with its own colored glow (cyan / purple / amber) like distinct
+ * glass panels rather than one flat block.
+ */
 @Composable
 private fun MonitoringStatusCard(state: DashboardUiState) {
-    // Fixed brand green, not theme.colorScheme.primary/tertiary — those
-    // swap to pale mint in dark mode, which reads "ajeeb" as a big filled
-    // banner. This card should look the same rich green in light and dark.
-    val gradient = Brush.linearGradient(
-        colors = listOf(
-            com.apptimemachine.ui.theme.BrandColors.HeroGradientStart,
-            com.apptimemachine.ui.theme.BrandColors.HeroGradientEnd
-        )
+    val infinite = rememberInfiniteTransition(label = "monitor_pulse")
+
+    // Breathing halo behind the monitor icon — expands/fades on loop.
+    val pulseScale by infinite.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.45f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulse_scale"
     )
+    val pulseAlpha by infinite.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulse_alpha"
+    )
+    // Slow shimmer on the outer border glow, independent of the icon pulse.
+    val borderGlow by infinite.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "border_glow"
+    )
+
+    val glassBg = Brush.linearGradient(
+        colors = listOf(Color(0xFF0E1B2E), Color(0xFF13233A))
+    )
+    val cyan = Color(0xFF3FD9FF)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .background(gradient)
+            .background(glassBg)
+            .border(1.dp, cyan.copy(alpha = borderGlow), RoundedCornerShape(24.dp))
             .padding(20.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f)),
+                modifier = Modifier.size(56.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.MonitorHeart,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
+                // Outer breathing ring
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { scaleX = pulseScale; scaleY = pulseScale }
+                        .clip(CircleShape)
+                        .background(cyan.copy(alpha = pulseAlpha))
                 )
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(12.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF4CD964))
-                )
+                        .background(cyan.copy(alpha = 0.14f))
+                        .border(1.5.dp, cyan.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.MonitorHeart,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Monitoring Active",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Row {
+                    Text(
+                        "Monitoring ",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        "Active",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = cyan
+                    )
+                }
                 Text(
                     "Your system is being monitored in real-time",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.85f)
+                    color = Color.White.copy(alpha = 0.65f)
                 )
             }
+            // Pill toggle — green dot + "Active" label, glass background.
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Color.White.copy(alpha = 0.16f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .background(Color(0xFF1A3A2E).copy(alpha = 0.8f))
+                    .border(1.dp, Color(0xFF4CD964).copy(alpha = 0.4f), RoundedCornerShape(50))
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
+                            .size(8.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF4CD964))
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Active", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Medium)
+                    Text("Active", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
+    }
 
-        Spacer(Modifier.height(18.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color.White.copy(alpha = 0.12f))
-                .padding(vertical = 14.dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                HeroStat(
-                    Icons.Default.Schedule,
-                    state.lastScan?.finishTime?.let { Formatters.relativeTime(it) } ?: "—",
-                    "Last Scan"
-                )
-                HeroStat(Icons.Filled.TrendingUp, state.totalTimelineEvents.toString(), "Timeline Events")
-                HeroStat(Icons.Default.Notifications, state.eventsToday.toString(), "Today's Events")
-            }
-        }
+    Spacer(Modifier.height(12.dp))
+
+    // Separate glass strip below the hero — 3 tiles, each its own subtle
+    // color halo (cyan / purple / amber), matching a segmented glass panel
+    // rather than the old single translucent block.
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        GlassStatTile(
+            icon = Icons.Default.Schedule,
+            value = state.lastScan?.finishTime?.let { Formatters.relativeTime(it) } ?: "—",
+            label = "Last Scan",
+            glowColor = Color(0xFF3FD9FF),
+            modifier = Modifier.weight(1f)
+        )
+        GlassStatTile(
+            icon = Icons.Filled.TrendingUp,
+            value = state.totalTimelineEvents.toString(),
+            label = "Timeline Events",
+            glowColor = Color(0xFFB25CFF),
+            modifier = Modifier.weight(1f)
+        )
+        GlassStatTile(
+            icon = Icons.Default.Notifications,
+            value = state.eventsToday.toString(),
+            label = "Today's Events",
+            glowColor = Color(0xFFFFB238),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun HeroStat(icon: ImageVector, value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun GlassStatTile(
+    icon: ImageVector,
+    value: String,
+    label: String,
+    glowColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val infinite = rememberInfiniteTransition(label = "glass_tile_glow")
+    val glowAlpha by infinite.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(animation = tween(1700, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
+        label = "glass_tile_glow_alpha"
+    )
+    val glassBg = Brush.linearGradient(
+        colors = listOf(Color(0xFF11213A), Color(0xFF0C1830))
+    )
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(glassBg)
+            .border(1.dp, glowColor.copy(alpha = 0.28f), RoundedCornerShape(20.dp))
+            .padding(vertical = 16.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(glowColor.copy(alpha = glowAlpha))
+            )
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(glowColor.copy(alpha = 0.18f))
+                    .border(1.dp, glowColor.copy(alpha = 0.5f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+        Spacer(Modifier.height(2.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.6f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(8.dp))
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.16f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.85f))
+                .fillMaxWidth(0.7f)
+                .height(2.5.dp)
+                .clip(RoundedCornerShape(50))
+                .background(glowColor.copy(alpha = 0.7f))
+        )
     }
 }
 
