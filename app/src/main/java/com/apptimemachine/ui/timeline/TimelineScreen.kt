@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ fun TimelineScreen(
 ) {
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val pagingItems = viewModel.pagedEvents.collectAsLazyPagingItems()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -61,61 +63,68 @@ fun TimelineScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    FilterChip(
-                        selected = selectedCategory == null,
-                        onClick = { viewModel.selectCategory(null) },
-                        label = { Text("All") }
-                    )
-                }
-                items(TIMELINE_FILTER_CATEGORIES) { category ->
-                    FilterChip(
-                        selected = selectedCategory == category,
-                        onClick = { viewModel.selectCategory(category) },
-                        label = { Text(category.name.lowercase().replaceFirstChar { it.uppercase() }) }
-                    )
-                }
-            }
-
-            if (pagingItems.itemCount == 0) {
-                EmptyState(
-                    title = "Monitoring has started",
-                    description = "Timeline events will appear automatically when supported changes are detected."
-                )
-                return@Scaffold
-            }
-
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(
-                    count = pagingItems.itemCount,
-                    key = pagingItems.itemKey { item ->
-                        when (item) {
-                            is TimelineListItem.Header -> "header_${item.dayKey}"
-                            is TimelineListItem.Event -> "event_${item.event.eventId}"
-                        }
-                    },
-                    contentType = { index ->
-                        when (pagingItems.peek(index)) {
-                            is TimelineListItem.Header -> "header"
-                            else -> "event"
-                        }
-                    }
-                ) { index ->
-                    when (val item = pagingItems[index]) {
-                        is TimelineListItem.Header -> DaySectionHeader(item.label)
-                        is TimelineListItem.Event -> TimelineEventRow(
-                            event = item.event,
-                            onClick = { onOpenAppDetails(item.event.appId) }
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(padding)
+        ) {
+            Column {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedCategory == null,
+                            onClick = { viewModel.selectCategory(null) },
+                            label = { Text("All") }
                         )
-                        null -> ShimmerCard(Modifier.fillMaxWidth().height(72.dp))
+                    }
+                    items(TIMELINE_FILTER_CATEGORIES) { category ->
+                        FilterChip(
+                            selected = selectedCategory == category,
+                            onClick = { viewModel.selectCategory(category) },
+                            label = { Text(category.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                        )
+                    }
+                }
+
+                if (pagingItems.itemCount == 0) {
+                    // Still wrapped by PullToRefreshBox's own scroll container, so
+                    // swiping down works even before any event has ever landed.
+                    EmptyState(
+                        title = "Pull down to refresh",
+                        description = "Swipe down anytime to check for new installs, updates, permission and storage changes."
+                    )
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(
+                            count = pagingItems.itemCount,
+                            key = pagingItems.itemKey { item ->
+                                when (item) {
+                                    is TimelineListItem.Header -> "header_${item.dayKey}"
+                                    is TimelineListItem.Event -> "event_${item.event.eventId}"
+                                }
+                            },
+                            contentType = { index ->
+                                when (pagingItems.peek(index)) {
+                                    is TimelineListItem.Header -> "header"
+                                    else -> "event"
+                                }
+                            }
+                        ) { index ->
+                            when (val item = pagingItems[index]) {
+                                is TimelineListItem.Header -> DaySectionHeader(item.label)
+                                is TimelineListItem.Event -> TimelineEventRow(
+                                    event = item.event,
+                                    onClick = { onOpenAppDetails(item.event.appId) }
+                                )
+                                null -> ShimmerCard(Modifier.fillMaxWidth().height(72.dp))
+                            }
+                        }
                     }
                 }
             }
