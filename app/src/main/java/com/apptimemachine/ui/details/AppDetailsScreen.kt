@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -16,9 +17,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.apptimemachine.core.utils.AppLauncher
 import com.apptimemachine.core.utils.Formatters
 import com.apptimemachine.data.entities.PermissionState
 import com.apptimemachine.data.entities.StorageHistoryEntity
@@ -55,6 +58,7 @@ fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltVi
     val state by viewModel.uiState.collectAsState()
     val timeline by viewModel.timelineState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -70,6 +74,13 @@ fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltVi
                             contentDescription = "Favorite",
                             tint = if (state.app?.isFavorite == true) Color(0xFFFFC107) else LocalContentColor.current
                         )
+                    }
+                    val packageName = state.app?.packageName
+                    IconButton(
+                        onClick = { packageName?.let { AppLauncher.open(context, it) } },
+                        enabled = packageName != null
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open app")
                     }
                 }
             )
