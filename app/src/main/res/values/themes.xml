@@ -8,10 +8,9 @@
 
     <!-- Branded system splash (Android 12+ SplashScreen API, set as the
          launch theme in the manifest and consumed via
-         installSplashScreen() in MainActivity). Plain white background
-         with the full-color blue shield-eye logo — not the green brand
-         color, so the logo's own blue reads correctly instead of a white
-         silhouette on a colored plate. -->
+         installSplashScreen() in MainActivity). Solid blue background
+         matching the "DM" logo's own plate, with the white mark drawn
+         on top via ic_splash_icon (transparent background). -->
     <style name="Theme.AppTimeMachine.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
