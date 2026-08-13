@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Plain white plate behind the new shield-eye logo, matching the
-     logo's own white background instead of the old blue solid fill. -->
+<!-- Solid blue plate behind the white "DM" mark, matching the new
+     logo's own blue background so the adaptive icon reads as one
+     continuous blue tile instead of a white ring around the mark. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#FFFFFF" />
+    <solid android:color="#1A9BFD" />
 </shape>
