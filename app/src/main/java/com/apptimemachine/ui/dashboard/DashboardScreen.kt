@@ -37,6 +37,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.apptimemachine.core.utils.Formatters
 import com.apptimemachine.ui.components.AtmCard
 import com.apptimemachine.ui.components.ShimmerCard
+import com.apptimemachine.ui.components.categoryIcons
 import com.apptimemachine.ui.timeline.TimelineEventRow
 import java.time.LocalTime
 
@@ -687,19 +688,6 @@ private fun BreakdownRow(icon: ImageVector, label: String, value: Int, total: In
         }
     }
 }
-
-private val categoryIcons: Map<String, Pair<ImageVector, Color>> = mapOf(
-    "Game" to (Icons.Default.SportsEsports to Color(0xFFAD1457)),
-    "Audio" to (Icons.Default.MusicNote to Color(0xFF6A1B9A)),
-    "Video" to (Icons.Default.Videocam to Color(0xFFE65100)),
-    "Image" to (Icons.Default.Image to Color(0xFF00838F)),
-    "Social" to (Icons.Default.Groups to Color(0xFF6A1B9A)),
-    "News" to (Icons.Default.Article to Color(0xFF1565C0)),
-    "Maps" to (Icons.Default.Map to Color(0xFF2E7D32)),
-    "Productivity" to (Icons.Default.Work to Color(0xFF1565C0)),
-    "Others" to (Icons.Default.MoreHoriz to Color(0xFF757575)),
-    "Uncategorized" to (Icons.Default.Apps to Color(0xFF757575))
-)
 
 @Composable
 private fun TopCategoriesPanel(categories: List<CategoryStat>) {
