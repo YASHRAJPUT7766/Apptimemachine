@@ -29,6 +29,8 @@ class TimelineRepository @Inject constructor(
         Pager(pagingConfig) { dao.pagingSourceSearch(query) }.flow
 
     fun observeRecent(limit: Int = 10): Flow<List<TimelineEventEntity>> = dao.observeRecent(limit)
+    fun observeRecentExcludingNotifications(limit: Int = 10): Flow<List<TimelineEventEntity>> =
+        dao.observeRecentExcludingNotifications(limit)
     fun observeTotalCount(): Flow<Int> = dao.observeTotalCount()
     fun observeCountSince(startOfDay: Long): Flow<Int> = dao.observeCountSince(startOfDay)
 
