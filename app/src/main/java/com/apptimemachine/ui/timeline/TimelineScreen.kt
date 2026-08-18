@@ -45,12 +45,28 @@ import com.apptimemachine.ui.components.ShimmerCard
 fun TimelineScreen(
     onOpenSearch: () -> Unit = {},
     onOpenAppDetails: (Long) -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     viewModel: TimelineViewModel = hiltViewModel()
 ) {
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val pagingItems = viewModel.pagedEvents.collectAsLazyPagingItems()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
+
+    // Tapping the "Notifications" filter (chip or sheet) jumps straight to
+    // the dedicated Notifications screen instead of filtering this list to
+    // NOTIFICATIONS-category rows — those rows are lightweight Timeline
+    // entries with just a short description, not the full title/body/
+    // grouped detail view. Immediately reset the filter back to null so
+    // Timeline itself is never left silently stuck on a category whose
+    // rows it no longer shows inline.
+    fun selectCategoryOrNavigate(category: EventCategory?) {
+        if (category == EventCategory.NOTIFICATIONS) {
+            onOpenNotifications()
+        } else {
+            viewModel.selectCategory(category)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -87,7 +103,7 @@ fun TimelineScreen(
                     items(TIMELINE_FILTER_CATEGORIES) { category ->
                         FilterChip(
                             selected = selectedCategory == category,
-                            onClick = { viewModel.selectCategory(category) },
+                            onClick = { selectCategoryOrNavigate(category) },
                             label = { Text(category.name.lowercase().replaceFirstChar { it.uppercase() }) }
                         )
                     }
@@ -147,7 +163,7 @@ fun TimelineScreen(
     if (showFilterSheet) {
         TimelineFilterSheet(
             selectedCategory = selectedCategory,
-            onSelect = { viewModel.selectCategory(it) },
+            onSelect = { selectCategoryOrNavigate(it) },
             onDismiss = { showFilterSheet = false }
         )
     }
