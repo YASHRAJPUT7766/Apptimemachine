@@ -46,6 +46,16 @@ interface TimelineEventDao {
     @Query("SELECT * FROM timeline_events ORDER BY createdTimestamp DESC LIMIT :limit")
     fun observeRecent(limit: Int = 10): Flow<List<TimelineEventEntity>>
 
+    // Same as observeRecent but excludes NOTIFICATIONS — powers the
+    // Dashboard's "System" activity tab, kept separate from the
+    // "Notifications" tab so the same event never shows up in both.
+    @Query("""
+        SELECT * FROM timeline_events
+        WHERE eventCategory != 'NOTIFICATIONS'
+        ORDER BY createdTimestamp DESC LIMIT :limit
+    """)
+    fun observeRecentExcludingNotifications(limit: Int = 10): Flow<List<TimelineEventEntity>>
+
     @Query("SELECT * FROM timeline_events WHERE eventId = :eventId LIMIT 1")
     suspend fun findById(eventId: Long): TimelineEventEntity?
 
