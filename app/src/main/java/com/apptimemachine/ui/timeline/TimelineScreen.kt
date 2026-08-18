@@ -50,7 +50,6 @@ fun TimelineScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val pagingItems = viewModel.pagedEvents.collectAsLazyPagingItems()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val deviceSnapshot by viewModel.deviceSnapshot.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -94,36 +93,11 @@ fun TimelineScreen(
                     }
                 }
 
-                // Fixed cards, above the scrolling list — today's battery-drain
-                // proxy and network usage, always visible regardless of which
-                // Timeline filter/scroll position is active.
-                if (deviceSnapshot.batteryProxyToday.isNotEmpty() || deviceSnapshot.networkToday.isNotEmpty()) {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        if (deviceSnapshot.batteryProxyToday.isNotEmpty()) {
-                            item {
-                                com.apptimemachine.ui.components.BatteryDrainCard(
-                                    apps = deviceSnapshot.batteryProxyToday,
-                                    deviceDropPercent = deviceSnapshot.deviceBatteryDropToday,
-                                    modifier = Modifier.width(300.dp)
-                                )
-                            }
-                        }
-                        if (deviceSnapshot.networkToday.isNotEmpty()) {
-                            item {
-                                com.apptimemachine.ui.components.NetworkUsageCard(
-                                    apps = deviceSnapshot.networkToday,
-                                    wifiTotalBytes = deviceSnapshot.wifiTotalTodayBytes,
-                                    mobileTotalBytes = deviceSnapshot.mobileTotalTodayBytes,
-                                    modifier = Modifier.width(300.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+                // Battery-drain-proxy and network-usage fixed cards
+                // intentionally removed from Timeline — Timeline now shows
+                // only the plain event list, same as before this card was
+                // added. Per-app battery/network is still available in
+                // App Details.
 
                 if (pagingItems.itemCount == 0) {
                     // Still wrapped by PullToRefreshBox's own scroll container, so
