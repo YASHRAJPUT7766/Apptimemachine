@@ -40,6 +40,8 @@ class MonitoringManager @Inject constructor(
     private val permissionRepository: PermissionRepository,
     private val usageRepository: UsageRepository,
     private val networkRepository: NetworkRepository,
+    private val batteryUsageRepository: BatteryUsageRepository,
+    private val batteryRepository: BatteryRepository,
     private val scanRepository: ScanRepository,
     private val userPreferences: UserPreferences,
     private val notificationHelper: AppNotificationHelper
@@ -111,6 +113,63 @@ class MonitoringManager @Inject constructor(
     }
 
     /**
+     * Storage-only re-scan, unconditional (not diff-gated) — every app's
+     * appSizeBytes/dataSizeBytes/cacheSizeBytes is re-read and written,
+     * regardless of whether it changed. Exists because the baseline scan
+     * during onboarding can run in the moment right after Usage Access is
+     * granted, when AppOpsManager hasn't always finished propagating the
+     * grant yet — that baselines every app's storage as null, and without
+     * this explicit refresh path the null only clears opportunistically
+     * whenever the app's normal diff-based scan cycle happens to touch it.
+     * Called automatically once Usage Access is detected granted (see
+     * SettingsViewModel), and exposed as a manual "Refresh Storage" action
+     * for the same reason a manual "Scan Now" exists.
+     */
+    suspend fun refreshAllStorage(): ScanResult = withContext(Dispatchers.IO) {
+        var errors = 0
+        var updated = 0
+        val now = System.currentTimeMillis()
+
+        val apps = runCatching { appRepository.getAllIncludingRemoved() }
+            .getOrElse { errors++; emptyList() }
+            .filter { !it.isRemoved }
+
+        for (app in apps) {
+            runCatching {
+                val storage = storageStatsReader.readStorage(app.packageName, app.packageUid)
+                if (storage.totalBytes == null) return@runCatching // still unavailable — don't overwrite with nulls needlessly, but don't count as error either
+
+                val previousTotal = storageRepository.getLatestForApp(app.appId)?.totalSizeBytes
+                appRepository.update(
+                    app.copy(
+                        appSizeBytes = storage.appSizeBytes,
+                        dataSizeBytes = storage.dataSizeBytes,
+                        cacheSizeBytes = storage.cacheSizeBytes,
+                        updatedAt = now
+                    )
+                )
+                storageRepository.insert(
+                    StorageHistoryEntity(
+                        appId = app.appId,
+                        appSizeBytes = storage.appSizeBytes,
+                        dataSizeBytes = storage.dataSizeBytes,
+                        cacheSizeBytes = storage.cacheSizeBytes,
+                        totalSizeBytes = storage.totalBytes,
+                        previousTotalSizeBytes = previousTotal,
+                        differenceBytes = previousTotal?.let { storage.totalBytes!! - it },
+                        apkSizeBytes = app.apkSizeBytes,
+                        recordedAt = now,
+                        scanId = null
+                    )
+                )
+                updated++
+            }.onFailure { errors++ }
+        }
+
+        ScanResult(appsScanned = updated, eventsGenerated = 0, errorCount = errors)
+    }
+
+    /**
      * The recurring scan cycle (Part 1.3 Monitoring Cycle, steps 1-7):
      * read previous snapshot -> read current state -> compare -> generate
      * events -> update database. Runs on IO dispatcher, never blocks caller.
@@ -169,6 +228,13 @@ class MonitoringManager @Inject constructor(
         // --- Usage (only if permission granted; never estimated otherwise) ---
         runCatching {
             eventsGenerated += scanUsage(now, scanType, scanId)
+        }.onFailure { errors++ }
+
+        // --- Battery-drain proxy, derived from the usage figures just
+        // recorded above (see BatteryUsageEntity doc for why this is a
+        // proxy rather than measured per-app battery %). ---
+        runCatching {
+            computeBatteryProxy(now)
         }.onFailure { errors++ }
 
         // --- Network (only where NetworkStatsManager is supported; never estimated otherwise) ---
@@ -382,5 +448,61 @@ class MonitoringManager @Inject constructor(
                 )
             )
         }
+    }
+
+    /**
+     * Battery-drain PROXY (not measured per-app battery %, see
+     * [com.apptimemachine.data.entities.BatteryUsageEntity] doc for why).
+     * Ranks today's apps by their share of total foreground time — the
+     * strongest real, publicly-available signal for relative battery
+     * impact — and records today's device-level battery drop alongside it
+     * purely as context. Recomputed every scan from that day's current
+     * DailyUsageEntity rows, so it stays current as usage accumulates.
+     */
+    private suspend fun computeBatteryProxy(now: Long) {
+        if (!usageStatsReader.hasUsageAccessPermission()) return
+
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val epochDay = today.toEpochDay()
+
+        val todaysUsage = usageRepository.getAllForDay(epochDay).filter { it.foregroundTimeMs > 0 }
+        if (todaysUsage.isEmpty()) return
+
+        val totalForegroundMs = todaysUsage.sumOf { it.foregroundTimeMs }
+        if (totalForegroundMs <= 0) return
+
+        val deviceDrop = deviceBatteryDropToday(today, now)
+
+        val rows = todaysUsage.map { daily ->
+            BatteryUsageEntity(
+                appId = daily.appId,
+                dateEpochDay = epochDay,
+                proxySharePercent = (daily.foregroundTimeMs.toFloat() / totalForegroundMs.toFloat()) * 100f,
+                foregroundMs = daily.foregroundTimeMs,
+                deviceBatteryDropPercent = deviceDrop,
+                updatedAt = now
+            )
+        }
+        batteryUsageRepository.upsertAll(rows)
+    }
+
+    /**
+     * Sums battery-percent lost across today's charging-disconnected
+     * windows, from the same BatteryHistoryEntity rows BatteryMonitor
+     * already records — device-level only, per Part 2.4's Android
+     * Limitation note, never attributed to a single app.
+     */
+    private suspend fun deviceBatteryDropToday(today: LocalDate, now: Long): Int? {
+        val startOfDay = today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val sessions = runCatching { batteryRepository.getRecentSince(startOfDay) }.getOrNull()
+            ?: return null
+        val drop = sessions
+            .mapNotNull { session ->
+                val start = session.batteryStartPercent
+                val end = session.batteryEndPercent ?: return@mapNotNull null
+                if (start != null && start > end) start - end else null
+            }
+            .sum()
+        return drop.takeIf { it > 0 }
     }
 }
