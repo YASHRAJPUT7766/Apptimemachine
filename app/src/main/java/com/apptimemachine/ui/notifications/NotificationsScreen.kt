@@ -223,6 +223,7 @@ private fun NotificationGroupRow(group: NotificationListItem.Group, onClick: () 
  * each with its own title/body (privacy-mode-aware), time, tap-to-open,
  * and delete. A "Delete all" action clears the whole group at once.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NotificationGroupDetailSheet(
     group: NotificationListItem.Group,
