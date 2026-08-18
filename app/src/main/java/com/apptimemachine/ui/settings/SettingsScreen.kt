@@ -163,7 +163,7 @@ fun SettingsScreen(
                                 context.startActivity(com.apptimemachine.core.monitoring.PermissionHelper.notificationListenerIntent())
                             }) { Text("Grant") }
                         } else {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                     SettingsDivider()
@@ -476,7 +476,7 @@ private fun ReliableNotificationsCard() {
                     context.startActivity(PermissionHelper.batteryOptimizationIntent(context))
                 }) { Text("Fix") }
             } else {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
         }
 
