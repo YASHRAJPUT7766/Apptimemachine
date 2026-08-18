@@ -33,7 +33,8 @@ import com.apptimemachine.ui.components.AtmCard
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onOpenReports: () -> Unit = {}
+    onOpenReports: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -303,6 +304,13 @@ fun SettingsScreen(
             item {
                 SettingsSectionHeader("General", Icons.Outlined.Description)
                 AtmCard {
+                    NavigationSettingRow(
+                        icon = Icons.Outlined.NotificationsActive,
+                        label = "Notifications",
+                        description = "View the full captured notification log",
+                        onClick = onOpenNotifications
+                    )
+                    SettingsDivider()
                     NavigationSettingRow(
                         icon = Icons.Outlined.Description,
                         label = "Reports",
