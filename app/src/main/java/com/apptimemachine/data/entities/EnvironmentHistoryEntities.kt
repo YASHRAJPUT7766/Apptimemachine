@@ -42,8 +42,24 @@ data class NotificationHistoryEntity(
     val eventType: NotificationEventType,
     val privacyModeUsed: NotificationPrivacyMode,
 
+    // True when this notification was heuristically detected as containing
+    // a one-time code (OTP). Per explicit instruction: OTP notifications
+    // are never stored with their title/body content — only this flag and
+    // the metadata (app, channel, time) are kept, so the log shows "OTP
+    // received" without ever persisting the code itself. Detection happens
+    // at capture time in the listener, before title/body are even attached
+    // to the entity, mirroring how privacy-mode stripping already works.
+    val isOtp: Boolean = false,
+
     val postedAt: Long,
-    val removedAt: Long? = null
+    val removedAt: Long? = null,
+
+    // Soft-delete: the user can clear a notification from the in-app log
+    // (separate from clearing it off the system status bar, which the
+    // system already does independently). Kept as a row rather than a hard
+    // delete so a "cleared" state can't be confused with "was never
+    // captured" — but excluded from every normal query/feed.
+    val clearedByUser: Boolean = false
 )
 
 enum class NotificationEventType { POSTED, REMOVED, UPDATED }
