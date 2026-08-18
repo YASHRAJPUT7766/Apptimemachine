@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.apptimemachine.core.datastore.AppTheme
 import com.apptimemachine.core.datastore.ScanInterval
 import com.apptimemachine.core.datastore.UserPreferences
+import com.apptimemachine.core.monitoring.MonitoringManager
 import com.apptimemachine.core.workers.WorkScheduler
 import com.apptimemachine.data.entities.NotificationPrivacyMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,8 +34,15 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
-    private val workScheduler: WorkScheduler
+    private val workScheduler: WorkScheduler,
+    private val monitoringManager: MonitoringManager
 ) : ViewModel() {
+
+    private val _isRefreshingStorage = MutableStateFlow(false)
+    val isRefreshingStorage: StateFlow<Boolean> = _isRefreshingStorage.asStateFlow()
+
+    private val _storageRefreshedCount = MutableStateFlow<Int?>(null)
+    val storageRefreshedCount: StateFlow<Int?> = _storageRefreshedCount.asStateFlow()
 
     val uiState: StateFlow<SettingsUiState> = combine(
         userPreferences.theme,
@@ -82,4 +90,21 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoBackupEnabled(enabled: Boolean) = viewModelScope.launch { userPreferences.setAutoBackupEnabled(enabled) }
     fun setAppLockEnabled(enabled: Boolean) = viewModelScope.launch { userPreferences.setAppLockEnabled(enabled) }
+
+    /**
+     * Manual "Refresh Storage" action (Storage fix): re-reads every app's
+     * storage size right now, unconditionally — see
+     * MonitoringManager.refreshAllStorage() doc for why this exists
+     * alongside the normal scan cycle.
+     */
+    fun refreshStorage() = viewModelScope.launch {
+        _isRefreshingStorage.value = true
+        val result = monitoringManager.refreshAllStorage()
+        _storageRefreshedCount.value = result.appsScanned
+        _isRefreshingStorage.value = false
+    }
+
+    fun clearStorageRefreshMessage() {
+        _storageRefreshedCount.value = null
+    }
 }

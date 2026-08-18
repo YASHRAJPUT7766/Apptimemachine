@@ -179,6 +179,39 @@ fun SettingsScreen(
             }
 
             item {
+                SettingsSectionHeader("Data & Storage", Icons.Outlined.Storage)
+                AtmCard {
+                    val isRefreshing by viewModel.isRefreshingStorage.collectAsState()
+                    val refreshedCount by viewModel.storageRefreshedCount.collectAsState()
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIconChip(Icons.Outlined.Storage)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Refresh Storage", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                            Text(
+                                when {
+                                    isRefreshing -> "Reading storage for every app…"
+                                    refreshedCount != null -> "Updated ${refreshedCount} apps"
+                                    else -> "Fixes apps stuck showing \"Unavailable\""
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (refreshedCount != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (isRefreshing) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            FilledTonalButton(onClick = {
+                                viewModel.clearStorageRefreshMessage()
+                                viewModel.refreshStorage()
+                            }) { Text("Refresh") }
+                        }
+                    }
+                }
+            }
+
+            item {
                 SettingsSectionHeader("Backup", Icons.Outlined.CloudUpload)
                 AtmCard {
                     IconSettingRow(
