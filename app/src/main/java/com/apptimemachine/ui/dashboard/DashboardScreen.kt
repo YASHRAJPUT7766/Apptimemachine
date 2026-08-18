@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +62,7 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val deviceSnapshot by viewModel.deviceSnapshot.collectAsState()
+    val insights by viewModel.insights.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold { padding ->
@@ -88,6 +90,10 @@ fun DashboardScreen(
                     item { Box(Modifier.padding(horizontal = 20.dp)) { MonitoringOverviewCard(state, onOpenApps) } }
                     item { Box(Modifier.padding(horizontal = 20.dp)) { QuickActionsGrid(onOpenStatistics, onOpenCompare, onOpenBackup) } }
 
+                    if (insights.isNotEmpty()) {
+                        item { Box(Modifier.padding(horizontal = 20.dp)) { InsightsCard(insights) } }
+                    }
+
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
@@ -102,80 +108,49 @@ fun DashboardScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Recent Activity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text("Activity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             }
                             TextButton(onClick = onOpenTimeline) { Text("See all") }
                         }
                     }
 
-                    if (state.recentEvents.isEmpty()) {                        item {
+                    // System / Notifications tabs — previously "Recent Activity"
+                    // and "Recent Notifications" were two separate always-visible
+                    // sections and the same notification event could effectively
+                    // show up in both. Splitting into tabs under one "Activity"
+                    // header keeps them cleanly separate: exactly one place shows
+                    // at a time, each with its own distinct visual style below.
+                    item {
+                        var selectedTab by rememberSaveable { mutableStateOf(0) }
+                        Column {
                             Box(Modifier.padding(horizontal = 20.dp)) {
-                                AtmCard {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.NotificationsActive,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                ActivityTabSelector(
+                                    selectedTab = selectedTab,
+                                    onSelect = { selectedTab = it }
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            if (selectedTab == 0) {
+                                if (state.recentEvents.isEmpty()) {
+                                    Box(Modifier.padding(horizontal = 20.dp)) {
+                                        EmptyActivityCard()
+                                    }
+                                } else {
+                                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                        state.recentEvents.forEach { event ->
+                                            Box(Modifier.padding(horizontal = 20.dp)) { TimelineEventRow(event) }
                                         }
-                                        Spacer(Modifier.width(14.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Monitoring started", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                            Text(
-                                                "Pull down to refresh and check for changes",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Text(
-                                            "Just now",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
                                 }
+                            } else {
+                                Box(Modifier.padding(horizontal = 20.dp)) {
+                                    RecentNotificationsCard(
+                                        rows = state.recentNotifications,
+                                        onOpenApp = { pkg -> com.apptimemachine.core.utils.AppLauncher.open(context, pkg) },
+                                        onDelete = { id -> viewModel.deleteNotification(id) }
+                                    )
+                                }
                             }
-                        }
-                    } else {
-                        items(state.recentEvents, key = { it.eventId }) { event ->
-                            Box(Modifier.padding(horizontal = 20.dp)) { TimelineEventRow(event) }
-                        }
-                    }
-
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Outlined.NotificationsActive,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("Recent Notifications", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            }
-                            TextButton(onClick = onOpenTimeline) { Text("See all") }
-                        }
-                    }
-                    item {
-                        Box(Modifier.padding(horizontal = 20.dp)) {
-                            RecentNotificationsCard(
-                                rows = state.recentNotifications,
-                                onOpenApp = { pkg -> com.apptimemachine.core.utils.AppLauncher.open(context, pkg) },
-                                onDelete = { id -> viewModel.deleteNotification(id) }
-                            )
                         }
                     }
 
@@ -857,6 +832,179 @@ private fun QuickActionTile(
 }
 
 
+
+/**
+ * Two-pill tab selector for the Activity section — "System" (installs,
+ * updates, permissions, storage, usage) vs "Notifications". Keeps the
+ * two feeds visually and structurally separate instead of stacking two
+ * always-visible sections that both showed notification-like content.
+ */
+@Composable
+private fun ActivityTabSelector(selectedTab: Int, onSelect: (Int) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(4.dp)
+    ) {
+        ActivityTabPill(
+            label = "System",
+            icon = Icons.Outlined.History,
+            selected = selectedTab == 0,
+            onClick = { onSelect(0) },
+            modifier = Modifier.weight(1f)
+        )
+        ActivityTabPill(
+            label = "Notifications",
+            icon = Icons.Outlined.NotificationsActive,
+            selected = selectedTab == 1,
+            onClick = { onSelect(1) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun ActivityTabPill(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun EmptyActivityCard() {
+    AtmCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Monitoring started", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Pull down to refresh and check for changes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                "Just now",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * Rule-based highlights, one row per insight, visually set apart from
+ * every other card on the Dashboard with a soft gradient + glow border
+ * so it reads as "smart" content rather than another plain stat card.
+ */
+@Composable
+private fun InsightsCard(insights: List<DashboardInsight>) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val accent = Color(0xFF9B4FE0)
+    val glassBg = if (isDark) {
+        Brush.linearGradient(colors = listOf(Color(0xFF1E1030), Color(0xFF150C24)))
+    } else {
+        Brush.linearGradient(colors = listOf(Color(0xFFF5EDFF), Color(0xFFEDE0FF)))
+    }
+    val textPrimary = if (isDark) Color.White else Color(0xFF2A1245)
+    val textSecondary = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF5C3E7A)
+
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Insights", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(glassBg)
+                .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                .padding(vertical = 6.dp)
+        ) {
+            insights.forEachIndexed { index, insight ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(accent.copy(alpha = if (isDark) 0.22f else 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            insightIcon(insight.icon),
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(insight.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                        Text(insight.subtitle, style = MaterialTheme.typography.bodySmall, color = textSecondary)
+                    }
+                }
+                if (index != insights.lastIndex) {
+                    HorizontalDivider(color = accent.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
+        }
+    }
+}
+
+private fun insightIcon(icon: InsightIcon): ImageVector = when (icon) {
+    InsightIcon.USAGE -> Icons.Outlined.Timelapse
+    InsightIcon.INSTALL -> Icons.Outlined.GetApp
+    InsightIcon.NOTIFICATIONS -> Icons.Outlined.NotificationsActive
+    InsightIcon.STORAGE -> Icons.Outlined.Storage
+    InsightIcon.BATTERY -> Icons.Outlined.BatteryChargingFull
+}
 
 /**
  * Compact permanent notification log for the Dashboard — each row shows

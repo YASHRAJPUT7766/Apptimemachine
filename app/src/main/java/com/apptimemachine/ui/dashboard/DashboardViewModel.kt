@@ -19,6 +19,15 @@ import javax.inject.Inject
 
 data class CategoryStat(val label: String, val count: Int)
 
+/** One item in the Dashboard's Insights card — a single rule-based highlight computed fresh each load. */
+data class DashboardInsight(
+    val icon: InsightIcon,
+    val title: String,
+    val subtitle: String
+)
+
+enum class InsightIcon { USAGE, INSTALL, NOTIFICATIONS, STORAGE, BATTERY }
+
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val totalApps: Int = 0,
@@ -68,6 +77,7 @@ class DashboardViewModel @Inject constructor(
     private val permissionRepository: PermissionRepository,
     private val notificationRepository: NotificationRepository,
     private val batteryRepository: BatteryRepository,
+    private val usageRepository: UsageRepository,
     private val scanRepository: ScanRepository,
     private val monitoringManager: MonitoringManager,
     private val monitoringStatsProvider: MonitoringStatsProvider
@@ -77,12 +87,82 @@ class DashboardViewModel @Inject constructor(
     /** Today's battery-drain-proxy and network-usage cards (Dashboard). */
     val deviceSnapshot: StateFlow<DeviceMonitoringSnapshot> = _deviceSnapshot.asStateFlow()
 
+    private val _insights = MutableStateFlow<List<DashboardInsight>>(emptyList())
+    /** Rule-based highlights for the Insights card — recomputed on load and on refresh. */
+    val insights: StateFlow<List<DashboardInsight>> = _insights.asStateFlow()
+
     init {
         loadDeviceSnapshot()
+        loadInsights()
     }
 
     private fun loadDeviceSnapshot() = viewModelScope.launch {
         _deviceSnapshot.value = monitoringStatsProvider.getDeviceSnapshotToday()
+    }
+
+    /**
+     * Computes a handful of simple, rule-based highlights straight from
+     * today's data — no ML, no stored "insight" rows, just the same
+     * repositories the rest of the Dashboard already reads. Recomputed
+     * fresh on every load/refresh so it can never go stale like a cached
+     * insight would.
+     */
+    private fun loadInsights() = viewModelScope.launch {
+        val today = startOfDay
+        val epochDay = LocalDate.now(ZoneOffset.systemDefault()).toEpochDay()
+        val weekAgo = today - (7L * 24 * 60 * 60 * 1000)
+
+        val result = mutableListOf<DashboardInsight>()
+
+        // Most-used app today, by foreground time.
+        usageRepository.getMostUsedForDay(epochDay)?.let { usage ->
+            if (usage.foregroundTimeMs > 0) {
+                val app = appRepository.findById(usage.appId)
+                if (app != null) {
+                    result += DashboardInsight(
+                        icon = InsightIcon.USAGE,
+                        title = "${app.appName} used the most today",
+                        subtitle = "${com.apptimemachine.core.utils.Formatters.duration(usage.foregroundTimeMs)} of screen time so far"
+                    )
+                }
+            }
+        }
+
+        // New installs this week.
+        val installsThisWeek = timelineRepository.countByCategorySince(
+            com.apptimemachine.data.entities.EventCategory.INSTALLATION, weekAgo
+        )
+        if (installsThisWeek > 0) {
+            result += DashboardInsight(
+                icon = InsightIcon.INSTALL,
+                title = "$installsThisWeek new ${if (installsThisWeek == 1) "app" else "apps"} installed this week",
+                subtitle = "Tap Recent Activity to see what changed"
+            )
+        }
+
+        // Most notification-heavy app today.
+        notificationRepository.observeRecentFeed().first().let { recent ->
+            val topByApp = recent.groupBy { it.appName }.maxByOrNull { it.value.size }
+            if (topByApp != null && topByApp.value.size >= 3) {
+                result += DashboardInsight(
+                    icon = InsightIcon.NOTIFICATIONS,
+                    title = "${topByApp.key} sent the most notifications",
+                    subtitle = "${topByApp.value.size} notifications recently"
+                )
+            }
+        }
+
+        // Storage growth today, only surfaced if it's actually notable.
+        val growth = storageRepository.observeTotalGrowthSince(today).first()
+        if (growth != null && growth > 50L * 1024 * 1024) { // 50MB+
+            result += DashboardInsight(
+                icon = InsightIcon.STORAGE,
+                title = "Storage grew by ${com.apptimemachine.core.utils.Formatters.bytes(growth)} today",
+                subtitle = "Across all monitored apps"
+            )
+        }
+
+        _insights.value = result.take(3)
     }
 
     // Pull-to-refresh state (Part 1.4A: with the manual "Scan Now" button
@@ -100,6 +180,7 @@ class DashboardViewModel @Inject constructor(
             try {
                 monitoringManager.performScan(ScanType.MANUAL)
                 loadDeviceSnapshot()
+                loadInsights()
             } finally {
                 _isRefreshing.value = false
             }
@@ -121,7 +202,7 @@ class DashboardViewModel @Inject constructor(
     private val timelineCounts = combine(
         timelineRepository.observeTotalCount(),
         timelineRepository.observeCountSince(startOfDay),
-        timelineRepository.observeRecent(10)
+        timelineRepository.observeRecentExcludingNotifications(10)
     ) { total, today, recent -> TimelineCounts(total, today, recent) }
 
     private val todayActivity = combine(
