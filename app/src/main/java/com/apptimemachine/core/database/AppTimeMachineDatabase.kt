@@ -36,7 +36,7 @@ import com.apptimemachine.data.entities.*
         InsightEntity::class,
         BatteryUsageEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
