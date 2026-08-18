@@ -41,6 +41,18 @@ class OnboardingViewModel @Inject constructor(
             _appsDetected.value = result.appsScanned
             workScheduler.schedulePeriodicScan(ScanInterval.THIRTY_MIN)
             userPreferences.setOnboardingCompleted(true)
+
+            // Self-heal storage: if Usage Access was granted moments
+            // before the scan above ran, AppOpsManager can occasionally
+            // still report the old (not-yet-granted) mode for a brief
+            // window right after the person returns from the Settings
+            // toggle — enough to baseline every app's storage as null on
+            // this very first scan. Scheduled via WorkManager rather than
+            // a plain delayed coroutine (see StorageRefreshWorker doc) so
+            // it still runs even though this ViewModel is about to be
+            // cleared when the person lands on the Dashboard.
+            workScheduler.enqueueDelayedStorageRefresh()
+
             _isScanning.value = false
             _scanComplete.value = true
         }
