@@ -37,8 +37,19 @@ val TIMELINE_FILTER_CATEGORIES = listOf(
 class TimelineViewModel @Inject constructor(
     private val timelineRepository: TimelineRepository,
     private val monitoringManager: MonitoringManager,
-    private val notificationRepository: com.apptimemachine.data.repository.NotificationRepository
+    private val notificationRepository: com.apptimemachine.data.repository.NotificationRepository,
+    private val monitoringStatsProvider: com.apptimemachine.core.monitoring.MonitoringStatsProvider
 ) : ViewModel() {
+
+    private val _deviceSnapshot = MutableStateFlow(com.apptimemachine.core.monitoring.DeviceMonitoringSnapshot())
+    /** Fixed header cards above the Timeline list — today's battery-drain-proxy and network usage. */
+    val deviceSnapshot: StateFlow<com.apptimemachine.core.monitoring.DeviceMonitoringSnapshot> = _deviceSnapshot.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _deviceSnapshot.value = monitoringStatsProvider.getDeviceSnapshotToday()
+        }
+    }
 
     private val _selectedCategory = MutableStateFlow<EventCategory?>(null)
     val selectedCategory: StateFlow<EventCategory?> = _selectedCategory.asStateFlow()

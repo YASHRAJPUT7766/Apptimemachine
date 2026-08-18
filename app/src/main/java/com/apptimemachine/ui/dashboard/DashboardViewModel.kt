@@ -2,7 +2,9 @@ package com.apptimemachine.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apptimemachine.core.monitoring.DeviceMonitoringSnapshot
 import com.apptimemachine.core.monitoring.MonitoringManager
+import com.apptimemachine.core.monitoring.MonitoringStatsProvider
 import com.apptimemachine.data.dao.CategoryCount
 import com.apptimemachine.data.entities.ScanHistoryEntity
 import com.apptimemachine.data.entities.ScanType
@@ -67,8 +69,21 @@ class DashboardViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository,
     private val batteryRepository: BatteryRepository,
     private val scanRepository: ScanRepository,
-    private val monitoringManager: MonitoringManager
+    private val monitoringManager: MonitoringManager,
+    private val monitoringStatsProvider: MonitoringStatsProvider
 ) : ViewModel() {
+
+    private val _deviceSnapshot = MutableStateFlow(DeviceMonitoringSnapshot())
+    /** Today's battery-drain-proxy and network-usage cards (Dashboard). */
+    val deviceSnapshot: StateFlow<DeviceMonitoringSnapshot> = _deviceSnapshot.asStateFlow()
+
+    init {
+        loadDeviceSnapshot()
+    }
+
+    private fun loadDeviceSnapshot() = viewModelScope.launch {
+        _deviceSnapshot.value = monitoringStatsProvider.getDeviceSnapshotToday()
+    }
 
     // Pull-to-refresh state (Part 1.4A: with the manual "Scan Now" button
     // removed, swiping down is now the only way to force an on-demand scan;
@@ -84,6 +99,7 @@ class DashboardViewModel @Inject constructor(
             _isRefreshing.value = true
             try {
                 monitoringManager.performScan(ScanType.MANUAL)
+                loadDeviceSnapshot()
             } finally {
                 _isRefreshing.value = false
             }

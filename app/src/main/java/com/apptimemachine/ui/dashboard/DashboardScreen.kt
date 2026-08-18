@@ -60,6 +60,7 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val deviceSnapshot by viewModel.deviceSnapshot.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold { padding ->
@@ -174,6 +175,25 @@ fun DashboardScreen(
                                 rows = state.recentNotifications,
                                 onOpenApp = { pkg -> com.apptimemachine.core.utils.AppLauncher.open(context, pkg) },
                                 onDelete = { id -> viewModel.deleteNotification(id) }
+                            )
+                        }
+                    }
+
+                    item {
+                        Box(Modifier.padding(horizontal = 20.dp)) {
+                            com.apptimemachine.ui.components.BatteryDrainCard(
+                                apps = deviceSnapshot.batteryProxyToday,
+                                deviceDropPercent = deviceSnapshot.deviceBatteryDropToday
+                            )
+                        }
+                    }
+
+                    item {
+                        Box(Modifier.padding(horizontal = 20.dp)) {
+                            com.apptimemachine.ui.components.NetworkUsageCard(
+                                apps = deviceSnapshot.networkToday,
+                                wifiTotalBytes = deviceSnapshot.wifiTotalTodayBytes,
+                                mobileTotalBytes = deviceSnapshot.mobileTotalTodayBytes
                             )
                         }
                     }

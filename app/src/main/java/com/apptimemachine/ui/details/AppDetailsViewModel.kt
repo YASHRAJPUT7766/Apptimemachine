@@ -53,10 +53,15 @@ class AppDetailsViewModel @Inject constructor(
     private val versionRepository: VersionRepository,
     private val permissionRepository: PermissionRepository,
     private val usageRepository: UsageRepository,
-    private val usageStatsReader: com.apptimemachine.core.monitoring.UsageStatsReader
+    private val usageStatsReader: com.apptimemachine.core.monitoring.UsageStatsReader,
+    private val monitoringStatsProvider: com.apptimemachine.core.monitoring.MonitoringStatsProvider
 ) : ViewModel() {
 
     private val appId: Long = checkNotNull(savedStateHandle["appId"])
+
+    private val _monitoringSnapshot = MutableStateFlow(com.apptimemachine.core.monitoring.DeviceMonitoringSnapshot())
+    /** This app's today battery-drain-proxy and network usage (App Details' own cards). */
+    val monitoringSnapshot: StateFlow<com.apptimemachine.core.monitoring.DeviceMonitoringSnapshot> = _monitoringSnapshot.asStateFlow()
 
     val uiState: StateFlow<AppDetailsUiState> = combine(
         appRepository.observeById(appId),
@@ -80,6 +85,9 @@ class AppDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val events = timelineRepository.getAllForApp(appId)
             _timelineState.value = events
+        }
+        viewModelScope.launch {
+            _monitoringSnapshot.value = monitoringStatsProvider.getAppSnapshotToday(appId)
         }
     }
 

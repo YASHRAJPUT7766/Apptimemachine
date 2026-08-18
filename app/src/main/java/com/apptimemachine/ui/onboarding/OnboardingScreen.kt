@@ -120,9 +120,13 @@ private fun FeaturesPage(onNext: () -> Unit) {
 private fun PermissionsPage(onNext: () -> Unit) {
     val context = LocalContext.current
     var usageAccessGranted by remember { mutableStateOf(PermissionHelper.hasUsageAccess(context)) }
+    var notificationAccessGranted by remember { mutableStateOf(PermissionHelper.hasNotificationListenerAccess(context)) }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    val usageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         usageAccessGranted = PermissionHelper.hasUsageAccess(context)
+    }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        notificationAccessGranted = PermissionHelper.hasNotificationListenerAccess(context)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
@@ -139,7 +143,22 @@ private fun PermissionsPage(onNext: () -> Unit) {
             title = "Usage Access",
             description = "Needed to measure how long and how often you use each app.",
             granted = usageAccessGranted,
-            onRequest = { launcher.launch(PermissionHelper.usageAccessIntent()) }
+            onRequest = { usageLauncher.launch(PermissionHelper.usageAccessIntent()) }
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // Without this, AppNotificationListenerService is never bound by
+        // Android and onNotificationPosted is never called — the
+        // Notifications feature (Timeline "Notifications" filter, Dashboard
+        // Recent Notifications) would otherwise capture nothing, silently,
+        // with no error anywhere, since Android itself just never invokes
+        // the service until this special access is granted here.
+        PermissionCard(
+            title = "Notification Access",
+            description = "Needed to keep a permanent log of notifications, even after you clear them from the status bar.",
+            granted = notificationAccessGranted,
+            onRequest = { notificationLauncher.launch(PermissionHelper.notificationListenerIntent()) }
         )
 
         Spacer(Modifier.weight(1f))

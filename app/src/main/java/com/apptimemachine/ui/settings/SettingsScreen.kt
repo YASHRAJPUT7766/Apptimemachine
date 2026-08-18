@@ -131,6 +131,43 @@ fun SettingsScreen(
             item {
                 SettingsSectionHeader("Privacy", Icons.Outlined.Shield)
                 AtmCard {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                    var notificationAccessGranted by remember {
+                        mutableStateOf(com.apptimemachine.core.monitoring.PermissionHelper.hasNotificationListenerAccess(context))
+                    }
+                    DisposableEffect(lifecycleOwner) {
+                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                                notificationAccessGranted = com.apptimemachine.core.monitoring.PermissionHelper.hasNotificationListenerAccess(context)
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsIconChip(Icons.Outlined.NotificationsActive)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Notification Access", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                            Text(
+                                if (notificationAccessGranted) "Granted — notifications are being logged"
+                                else "Required for the Notifications log to capture anything",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (notificationAccessGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (!notificationAccessGranted) {
+                            FilledTonalButton(onClick = {
+                                context.startActivity(com.apptimemachine.core.monitoring.PermissionHelper.notificationListenerIntent())
+                            }) { Text("Grant") }
+                        } else {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    SettingsDivider()
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         SettingsIconChip(Icons.Outlined.VisibilityOff)
                         Spacer(Modifier.width(12.dp))

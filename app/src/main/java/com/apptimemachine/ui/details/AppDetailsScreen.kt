@@ -57,6 +57,7 @@ private val ColorVersion = Color(0xFF2E7D96)   // teal, for the Version tab's di
 fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val timeline by viewModel.timelineState.collectAsState()
+    val monitoringSnapshot by viewModel.monitoringSnapshot.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
 
@@ -112,7 +113,7 @@ fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltVi
             }
 
             when (selectedTab) {
-                0 -> OverviewTab(state)
+                0 -> OverviewTab(state, monitoringSnapshot)
                 1 -> TimelineTab(timeline)
                 2 -> StorageTab(state)
                 3 -> VersionTab(state)
@@ -123,7 +124,7 @@ fun AppDetailsScreen(onBack: () -> Unit, viewModel: AppDetailsViewModel = hiltVi
 }
 
 @Composable
-private fun OverviewTab(state: AppDetailsUiState) {
+private fun OverviewTab(state: AppDetailsUiState, monitoringSnapshot: com.apptimemachine.core.monitoring.DeviceMonitoringSnapshot) {
     val app = state.app ?: return
     val latestStorage = state.storageHistory.maxByOrNull { it.recordedAt }
 
@@ -245,6 +246,25 @@ private fun OverviewTab(state: AppDetailsUiState) {
                         )
                     }
                 }
+            }
+        }
+
+        if (monitoringSnapshot.batteryProxyToday.isNotEmpty()) {
+            item {
+                com.apptimemachine.ui.components.BatteryDrainCard(
+                    apps = monitoringSnapshot.batteryProxyToday,
+                    deviceDropPercent = monitoringSnapshot.deviceBatteryDropToday
+                )
+            }
+        }
+
+        if (monitoringSnapshot.networkToday.isNotEmpty()) {
+            item {
+                com.apptimemachine.ui.components.NetworkUsageCard(
+                    apps = monitoringSnapshot.networkToday,
+                    wifiTotalBytes = monitoringSnapshot.wifiTotalTodayBytes,
+                    mobileTotalBytes = monitoringSnapshot.mobileTotalTodayBytes
+                )
             }
         }
     }

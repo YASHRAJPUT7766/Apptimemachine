@@ -89,3 +89,59 @@ thin or not yet built:
   `BatteryManager`, and `NotificationListenerService` are used.
 - Offline-first: `network_security_config.xml` disables cleartext traffic
   entirely; there is no networking code anywhere in the app.
+
+## Changelog: deep monitoring pass (Notifications, Battery, Storage fix)
+
+### Storage "Unavailable" — root cause and fix
+Some apps stayed permanently "Unavailable" for storage size after
+onboarding. Root cause: `performInitialScan()` ran immediately after the
+onboarding flow, sometimes in the same moment Usage Access was granted —
+`AppOpsManager` can take a brief window to report the new grant, so every
+app got baselined with `null` storage. Nothing forced a full re-read
+afterward, so it only healed opportunistically. Fixed by:
+- `MonitoringManager.refreshAllStorage()` — an unconditional (not
+  diff-gated) re-read of every app's storage.
+- `StorageRefreshWorker`, scheduled 5s after onboarding completes via
+  WorkManager (not a plain delayed coroutine, since the onboarding
+  ViewModel is cleared almost immediately once the person reaches the
+  Dashboard).
+- A manual "Refresh Storage" button in Settings > Data & Storage, for the
+  same fix on demand.
+
+### Notification log — permanent, with OTP handling and actions
+Notifications now write both to the existing detailed
+`NotificationHistoryEntity` log AND a lightweight `TimelineEventEntity`
+(`EventCategory.NOTIFICATIONS`), so they show up in Timeline's "All" feed,
+a new "Notifications" filter chip, and the Dashboard's Recent Activity —
+previously notifications were captured but never surfaced in any of
+those. Each entry supports "Open app" (via the existing `AppLauncher`) and
+"Delete" (removes the entry from this in-app log only; does not touch the
+notification on the device).
+
+OTP detection (`OtpDetector.kt`) runs at capture time, before the
+notification's privacy mode is even applied: if a notification looks like
+a one-time code, its title/body are never stored at all — only an
+`isOtp` flag — regardless of which `NotificationPrivacyMode` is active.
+The UI shows "OTP received" for these.
+
+### Battery per-app — real API is system-only; replaced with an honest proxy
+Investigated `BatteryStatsManager.getBatteryUsageStats()`, the API that
+reports real per-app battery %. It's marked `@SystemApi`/`@hide` and
+requires the signature-level `BATTERY_STATS` permission — not obtainable
+by a third-party app on a non-rooted device, regardless of what the user
+grants. Rather than build on a hidden API (against Rule 6) or fabricate
+numbers, `BatteryUsageEntity` stores a **usage-time-derived proxy**
+(each app's share of total foreground time that day), explicitly labeled
+"Estimated" everywhere it's shown, alongside the real device-level
+battery drop for context. See the entity's doc comment for the full
+reasoning.
+
+### Permission "last active" — dropped; not buildable without root
+Investigated `AppOpsManager.getPackagesForOps()` /
+`startWatchingActive()` for "which permission did app X last use, and
+when" across all installed apps. Both require signature-level permissions
+(`GET_APP_OPS_STATS`, `WATCH_APPOPS`) reserved for system apps — this is
+the same restriction that stops any regular third-party app from building
+a real "who used the camera" dashboard for other apps; it's not a gap
+that more user-granted permissions can close. This feature was dropped
+entirely rather than shipped with fake or silently-broken data.

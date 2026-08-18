@@ -65,38 +65,74 @@ class StorageStatsReader @Inject constructor(
      * after granting Usage Access and running a scan.
      */
     fun readStorage(packageName: String, uid: Int): RawStorageSnapshot {
-        val manager = storageStatsManager ?: return RawStorageSnapshot(null, null, null)
-        if (!usageStatsReader.hasUsageAccessPermission()) return RawStorageSnapshot(null, null, null)
+        val manager = storageStatsManager ?: run {
+            android.util.Log.w("StorageStatsReader", "$packageName: StorageStatsManager unavailable (API < 26)")
+            return RawStorageSnapshot(null, null, null)
+        }
+        if (!usageStatsReader.hasUsageAccessPermission()) {
+            android.util.Log.w("StorageStatsReader", "$packageName: Usage Access not granted, cannot read storage")
+            return RawStorageSnapshot(null, null, null)
+        }
 
         val storageUuid = runCatching {
             context.packageManager.getApplicationInfo(packageName, 0).storageUuid
-        }.getOrNull() ?: return RawStorageSnapshot(null, null, null)
+        }.getOrElse { e ->
+            android.util.Log.w("StorageStatsReader", "$packageName: getApplicationInfo/storageUuid failed", e)
+            return RawStorageSnapshot(null, null, null)
+        }
 
         // Primary path: queryStatsForUid — works for system/vendor packages
         // that queryStatsForPackage can't resolve.
         runCatching {
             val stats: StorageStats = manager.queryStatsForUid(storageUuid, uid)
+            android.util.Log.d(
+                "StorageStatsReader",
+                "$packageName: queryStatsForUid OK app=${stats.appBytes} data=${stats.dataBytes} cache=${stats.cacheBytes}"
+            )
             return RawStorageSnapshot(
                 appSizeBytes = stats.appBytes,
                 dataSizeBytes = stats.dataBytes,
                 cacheSizeBytes = stats.cacheBytes
             )
         }.onFailure { e ->
-            android.util.Log.w("StorageStatsReader", "queryStatsForUid failed for $packageName (uid=$uid)", e)
+            android.util.Log.w("StorageStatsReader", "$packageName: queryStatsForUid failed (uid=$uid)", e)
         }
 
-        // Fallback: queryStatsForPackage, in case a package ever behaves
-        // the other way around (resolvable by name but not by uid).
-        return runCatching {
+        // Fallback 1: queryStatsForPackage with the caller's own user handle.
+        runCatching {
             val userHandle: UserHandle = Process.myUserHandle()
             val stats: StorageStats = manager.queryStatsForPackage(storageUuid, packageName, userHandle)
+            android.util.Log.d(
+                "StorageStatsReader",
+                "$packageName: queryStatsForPackage(myUserHandle) OK app=${stats.appBytes} data=${stats.dataBytes} cache=${stats.cacheBytes}"
+            )
+            return RawStorageSnapshot(
+                appSizeBytes = stats.appBytes,
+                dataSizeBytes = stats.dataBytes,
+                cacheSizeBytes = stats.cacheBytes
+            )
+        }.onFailure { e ->
+            android.util.Log.w("StorageStatsReader", "$packageName: queryStatsForPackage(myUserHandle) also failed", e)
+        }
+
+        // Fallback 2: explicit primary-user handle (UserHandle.getUserHandleForUid),
+        // in case Process.myUserHandle() resolves oddly under an OEM's
+        // multi-user/work-profile-like space (observed on some MIUI/HyperOS
+        // builds — see the known "app storage shows 0 bytes" MIUI issue).
+        return runCatching {
+            val primaryUserHandle: UserHandle = android.os.UserHandle.getUserHandleForUid(uid)
+            val stats: StorageStats = manager.queryStatsForPackage(storageUuid, packageName, primaryUserHandle)
+            android.util.Log.d(
+                "StorageStatsReader",
+                "$packageName: queryStatsForPackage(uidUserHandle) OK app=${stats.appBytes} data=${stats.dataBytes} cache=${stats.cacheBytes}"
+            )
             RawStorageSnapshot(
                 appSizeBytes = stats.appBytes,
                 dataSizeBytes = stats.dataBytes,
                 cacheSizeBytes = stats.cacheBytes
             )
         }.getOrElse { e ->
-            android.util.Log.w("StorageStatsReader", "queryStatsForPackage fallback also failed for $packageName", e)
+            android.util.Log.w("StorageStatsReader", "$packageName: all storage query paths failed — giving up", e)
             RawStorageSnapshot(null, null, null)
         }
     }
