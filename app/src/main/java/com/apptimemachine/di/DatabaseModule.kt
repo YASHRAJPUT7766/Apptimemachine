@@ -3,6 +3,7 @@ package com.apptimemachine.di
 import android.content.Context
 import androidx.room.Room
 import com.apptimemachine.core.database.AppTimeMachineDatabase
+import com.apptimemachine.core.database.MIGRATION_1_2
 import com.apptimemachine.data.dao.*
 import dagger.Module
 import dagger.Provides
@@ -26,6 +27,7 @@ object DatabaseModule {
             // No fallbackToDestructiveMigration in release — Part 4.0 Database
             // Rules: "No destructive migrations in release builds." Future
             // schema bumps must add an explicit Migration() here.
+            .addMigrations(MIGRATION_1_2)
             .build()
     }
 
@@ -79,4 +81,7 @@ object DatabaseModule {
 
     @Provides
     fun provideInsightDao(db: AppTimeMachineDatabase): InsightDao = db.insightDao()
+
+    @Provides
+    fun provideBatteryUsageDao(db: AppTimeMachineDatabase): BatteryUsageDao = db.batteryUsageDao()
 }
