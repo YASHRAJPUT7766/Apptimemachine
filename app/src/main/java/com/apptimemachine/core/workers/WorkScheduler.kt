@@ -51,4 +51,21 @@ class WorkScheduler @Inject constructor(
             request
         )
     }
+
+    /**
+     * Schedules the storage self-heal a few seconds out (see
+     * StorageRefreshWorker doc) — survives the onboarding ViewModel being
+     * cleared when the person navigates to the Dashboard right after
+     * setup, unlike a plain delayed coroutine would.
+     */
+    fun enqueueDelayedStorageRefresh() {
+        val request = OneTimeWorkRequestBuilder<StorageRefreshWorker>()
+            .setInitialDelay(5, TimeUnit.SECONDS)
+            .build()
+        workManager.enqueueUniqueWork(
+            StorageRefreshWorker.WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
 }
