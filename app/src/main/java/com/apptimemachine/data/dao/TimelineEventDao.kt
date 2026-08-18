@@ -80,6 +80,9 @@ interface TimelineEventDao {
     @Query("DELETE FROM timeline_events WHERE appId = :appId")
     suspend fun deleteForApp(appId: Long)
 
+    @Query("DELETE FROM timeline_events WHERE eventId = :eventId")
+    suspend fun deleteById(eventId: Long)
+
     // Duplicate-prevention check (Part 1.3 Duplicate Event Prevention):
     // only used for event types where the same old->new pair should not be
     // logged twice in a row for the same app.
