@@ -3,10 +3,15 @@ package com.apptimemachine.core.notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.apptimemachine.core.datastore.UserPreferences
+import com.apptimemachine.data.entities.EventCategory
+import com.apptimemachine.data.entities.EventSeverity
 import com.apptimemachine.data.entities.NotificationEventType
 import com.apptimemachine.data.entities.NotificationHistoryEntity
 import com.apptimemachine.data.entities.NotificationPrivacyMode
+import com.apptimemachine.data.entities.ScanType
+import com.apptimemachine.data.entities.TimelineEventEntity
 import com.apptimemachine.data.repository.AppRepository
+import com.apptimemachine.data.repository.TimelineRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +41,7 @@ class AppNotificationListenerService : NotificationListenerService() {
     @Inject lateinit var appRepository: AppRepository
     @Inject lateinit var userPreferences: UserPreferences
     @Inject lateinit var notificationHistoryRepository: com.apptimemachine.data.repository.NotificationRepository
+    @Inject lateinit var timelineRepository: TimelineRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -53,13 +59,21 @@ class AppNotificationListenerService : NotificationListenerService() {
             val privacyMode = userPreferences.notificationPrivacyMode.first()
 
             val extras = sbn.notification?.extras
-            val title = extras?.getCharSequence("android.title")?.toString()
-            val text = extras?.getCharSequence("android.text")?.toString()
+            val rawTitle = extras?.getCharSequence("android.title")?.toString()
+            val rawText = extras?.getCharSequence("android.text")?.toString()
 
-            val (storedTitle, storedBody) = when (privacyMode) {
-                NotificationPrivacyMode.METADATA_ONLY -> null to null
-                NotificationPrivacyMode.METADATA_PLUS_TITLE -> title to null
-                NotificationPrivacyMode.FULL -> title to text
+            // OTP detection runs before privacy-mode stripping and before
+            // storedTitle/storedBody are ever decided — an OTP notification
+            // gets NO title/body stored at all, regardless of privacy mode,
+            // only the isOtp flag + normal metadata (app, channel, time).
+            // See OtpDetector doc for why this can't be "redact and store".
+            val otpResult = OtpDetector.analyze(rawTitle, rawText)
+
+            val (storedTitle, storedBody) = when {
+                otpResult.isOtp -> null to null
+                privacyMode == NotificationPrivacyMode.METADATA_ONLY -> null to null
+                privacyMode == NotificationPrivacyMode.METADATA_PLUS_TITLE -> rawTitle to null
+                else -> rawTitle to rawText
             }
 
             notificationHistoryRepository.insert(
@@ -75,10 +89,41 @@ class AppNotificationListenerService : NotificationListenerService() {
                     isGroup = sbn.isGroup,
                     eventType = eventType,
                     privacyModeUsed = privacyMode,
+                    isOtp = otpResult.isOtp,
                     postedAt = sbn.postTime,
                     removedAt = if (eventType == NotificationEventType.REMOVED) System.currentTimeMillis() else null
                 )
             )
+
+            // Surface into the main Timeline too (Part 3.6 "All" feed), but
+            // only for POSTED — REMOVED just marks a POSTED row leaving the
+            // status bar, and a second Timeline row for the same
+            // notification would just duplicate the feed. The permanent
+            // in-app log (NotificationHistoryEntity, above) already
+            // survives regardless of what happens to the row here.
+            if (eventType == NotificationEventType.POSTED) {
+                val summary = when {
+                    otpResult.isOtp -> "OTP received"
+                    storedTitle != null -> storedTitle
+                    else -> "New notification"
+                }
+                timelineRepository.insert(
+                    TimelineEventEntity(
+                        appId = app.appId,
+                        packageName = app.packageName,
+                        appName = app.appName,
+                        iconCachePath = app.iconCachePath,
+                        eventCategory = EventCategory.NOTIFICATIONS,
+                        eventType = "NOTIFICATION_POSTED",
+                        newValue = summary,
+                        severity = EventSeverity.INFO,
+                        createdTimestamp = sbn.postTime,
+                        sourceApi = "NotificationListenerService",
+                        scanType = ScanType.REALTIME_BROADCAST,
+                        scanId = null
+                    )
+                )
+            }
         }
     }
 }
