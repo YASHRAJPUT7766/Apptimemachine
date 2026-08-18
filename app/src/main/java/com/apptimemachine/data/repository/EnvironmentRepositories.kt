@@ -51,6 +51,7 @@ class NetworkRepository @Inject constructor(private val dao: NetworkHistoryDao) 
     fun observeMobileTotalForDay(day: Long): Flow<Long?> = dao.observeMobileTotalForDay(day)
     suspend fun insert(entry: NetworkHistoryEntity): Long = dao.insert(entry)
     suspend fun getAllForDay(day: Long): List<NetworkHistoryEntity> = dao.getAllForDay(day)
+    suspend fun getForAppAndDay(appId: Long, day: Long): NetworkHistoryEntity? = dao.getForAppAndDay(appId, day)
 }
 
 /** Battery-drain PROXY (see [BatteryUsageEntity] doc) — derived from real usage time, never a claimed measured battery %. */
