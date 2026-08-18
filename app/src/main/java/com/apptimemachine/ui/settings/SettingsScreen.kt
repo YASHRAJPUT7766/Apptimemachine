@@ -476,7 +476,7 @@ private fun ReliableNotificationsCard() {
                     context.startActivity(PermissionHelper.batteryOptimizationIntent(context))
                 }) { Text("Fix") }
             } else {
-                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
         }
 
