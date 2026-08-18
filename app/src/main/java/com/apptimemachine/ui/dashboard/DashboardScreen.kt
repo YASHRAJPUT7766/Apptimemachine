@@ -57,6 +57,7 @@ fun DashboardScreen(
     onOpenStatistics: () -> Unit = {},
     onOpenCompare: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -143,12 +144,26 @@ fun DashboardScreen(
                                     }
                                 }
                             } else {
-                                Box(Modifier.padding(horizontal = 20.dp)) {
-                                    RecentNotificationsCard(
-                                        rows = state.recentNotifications,
-                                        onOpenApp = { pkg -> com.apptimemachine.core.utils.AppLauncher.open(context, pkg) },
-                                        onDelete = { id -> viewModel.deleteNotification(id) }
-                                    )
+                                Column {
+                                    Box(Modifier.padding(horizontal = 20.dp)) {
+                                        RecentNotificationsCard(
+                                            rows = state.recentNotifications,
+                                            onOpenApp = { pkg -> com.apptimemachine.core.utils.AppLauncher.open(context, pkg) },
+                                            onDelete = { id -> viewModel.deleteNotification(id) }
+                                        )
+                                    }
+                                    Spacer(Modifier.height(10.dp))
+                                    Box(Modifier.padding(horizontal = 20.dp)) {
+                                        OutlinedButton(
+                                            onClick = onOpenNotifications,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(14.dp)
+                                        ) {
+                                            Icon(Icons.Outlined.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("See all notifications")
+                                        }
+                                    }
                                 }
                             }
                         }
