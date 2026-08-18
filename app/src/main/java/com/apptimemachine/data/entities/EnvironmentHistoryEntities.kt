@@ -116,7 +116,11 @@ enum class ChargingMethod { AC, USB, WIRELESS, UNKNOWN }
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["appId"]), Index(value = ["dateEpochDay"])]
+    // Unique on (appId, dateEpochDay): one row per app per day. Without
+    // this, every scan cycle inserted a brand-new row instead of updating
+    // today's row, so getAllForDay() returned several rows for the same
+    // app — the same app appearing to "repeat" in the Network Usage list.
+    indices = [Index(value = ["appId"]), Index(value = ["appId", "dateEpochDay"], unique = true)]
 )
 data class NetworkHistoryEntity(
     @PrimaryKey(autoGenerate = true)
