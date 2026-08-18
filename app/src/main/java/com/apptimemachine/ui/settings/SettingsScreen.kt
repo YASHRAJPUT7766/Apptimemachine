@@ -136,6 +136,15 @@ fun SettingsScreen(
                     var notificationAccessGranted by remember {
                         mutableStateOf(com.apptimemachine.core.monitoring.PermissionHelper.hasNotificationListenerAccess(context))
                     }
+                    // Tracks whether "Grant" has already been tapped once
+                    // without success — on Android 13+, sideloaded builds
+                    // (GitHub Actions APK, Aptoide) get blocked by a
+                    // "Restricted setting" system dialog the first time,
+                    // and the toggle screen offers no way around it. Once
+                    // that's happened, show the "Allow restricted settings"
+                    // instructions instead of just letting the person tap
+                    // "Grant" again and hit the same dialog.
+                    var grantAttempted by remember { mutableStateOf(false) }
                     DisposableEffect(lifecycleOwner) {
                         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
@@ -160,10 +169,40 @@ fun SettingsScreen(
                         }
                         if (!notificationAccessGranted) {
                             FilledTonalButton(onClick = {
+                                grantAttempted = true
                                 context.startActivity(com.apptimemachine.core.monitoring.PermissionHelper.notificationListenerIntent())
                             }) { Text("Grant") }
                         } else {
                             Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    if (!notificationAccessGranted && grantAttempted) {
+                        Spacer(Modifier.height(10.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                "Seeing \"Restricted setting — for your security\"? That's Android blocking this because the app wasn't installed from the Play Store.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Fix: open App Info below → tap the ⋮ menu (top right) → \"Allow restricted settings\" → then try Grant again.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            FilledTonalButton(
+                                onClick = { context.startActivity(com.apptimemachine.core.monitoring.PermissionHelper.appInfoIntent(context)) },
+                                modifier = Modifier.align(Alignment.End)
+                            ) { Text("Open App Info") }
                         }
                     }
                     SettingsDivider()
