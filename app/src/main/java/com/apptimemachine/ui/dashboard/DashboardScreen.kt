@@ -187,16 +187,8 @@ fun DashboardScreen(
                             )
                         }
                     }
-
-                    item {
-                        Box(Modifier.padding(horizontal = 20.dp)) {
-                            com.apptimemachine.ui.components.NetworkUsageCard(
-                                apps = deviceSnapshot.networkToday,
-                                wifiTotalBytes = deviceSnapshot.wifiTotalTodayBytes,
-                                mobileTotalBytes = deviceSnapshot.mobileTotalTodayBytes
-                            )
-                        }
-                    }
+                    // Network Usage card intentionally removed from Dashboard —
+                    // still available per-app in App Details.
                 }
             }
         }
