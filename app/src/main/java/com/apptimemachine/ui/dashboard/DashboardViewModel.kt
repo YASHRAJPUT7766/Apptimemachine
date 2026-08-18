@@ -33,7 +33,8 @@ data class DashboardUiState(
     val permissionsGrantedToday: Int = 0,
     val permissionsRevokedToday: Int = 0,
     val notificationsToday: Int = 0,
-    val chargingSessionsToday: Int = 0
+    val chargingSessionsToday: Int = 0,
+    val recentNotifications: List<com.apptimemachine.data.dao.NotificationFeedRow> = emptyList()
 )
 
 // Small intermediate groupings keep the final combine() call fully
@@ -122,9 +123,11 @@ class DashboardViewModel @Inject constructor(
         storageRepository.observeTotalGrowthSince(startOfDay)
     ) { lastScan, growth -> ScanAndGrowth(lastScan, growth) }
 
+    private val recentNotifications = notificationRepository.observeRecentFeed()
+
     val uiState: StateFlow<DashboardUiState> = combine(
-        appCounts, timelineCounts, todayActivity, scanAndGrowth
-    ) { apps, timeline, activity, scanGrowth ->
+        appCounts, timelineCounts, todayActivity, scanAndGrowth, recentNotifications
+    ) { apps, timeline, activity, scanGrowth, notifications ->
         DashboardUiState(
             isLoading = false,
             totalApps = apps.total,
@@ -141,7 +144,8 @@ class DashboardViewModel @Inject constructor(
             permissionsGrantedToday = activity.granted,
             permissionsRevokedToday = activity.revoked,
             notificationsToday = activity.notifs,
-            chargingSessionsToday = activity.charging
+            chargingSessionsToday = activity.charging,
+            recentNotifications = notifications
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
@@ -153,5 +157,10 @@ class DashboardViewModel @Inject constructor(
         val stats = top.map { CategoryStat(it.category, it.count) }.toMutableList()
         if (rest > 0) stats += CategoryStat("Others", rest)
         return stats
+    }
+
+    /** Deletes a notification from the in-app log (Dashboard's Recent Notifications card action). */
+    fun deleteNotification(id: Long) = viewModelScope.launch {
+        notificationRepository.delete(id)
     }
 }

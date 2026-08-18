@@ -60,6 +60,7 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold { padding ->
         PullToRefreshBox(
@@ -106,8 +107,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    if (state.recentEvents.isEmpty()) {
-                        item {
+                    if (state.recentEvents.isEmpty()) {                        item {
                             Box(Modifier.padding(horizontal = 20.dp)) {
                                 AtmCard {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -146,6 +146,35 @@ fun DashboardScreen(
                     } else {
                         items(state.recentEvents, key = { it.eventId }) { event ->
                             Box(Modifier.padding(horizontal = 20.dp)) { TimelineEventRow(event) }
+                        }
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Outlined.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Recent Notifications", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(onClick = onOpenTimeline) { Text("See all") }
+                        }
+                    }
+                    item {
+                        Box(Modifier.padding(horizontal = 20.dp)) {
+                            RecentNotificationsCard(
+                                rows = state.recentNotifications,
+                                onOpenApp = { pkg -> com.apptimemachine.core.utils.AppLauncher.open(context, pkg) },
+                                onDelete = { id -> viewModel.deleteNotification(id) }
+                            )
                         }
                     }
                 }
@@ -816,3 +845,84 @@ private fun QuickActionTile(
 }
 
 
+
+/**
+ * Compact permanent notification log for the Dashboard — each row shows
+ * the source app, a title (or "OTP received" for OTP-flagged rows, never
+ * the code itself), and relative time, with a trailing menu to open the
+ * source app or delete the entry from this in-app log.
+ */
+@Composable
+private fun RecentNotificationsCard(
+    rows: List<com.apptimemachine.data.dao.NotificationFeedRow>,
+    onOpenApp: (String) -> Unit,
+    onDelete: (Long) -> Unit
+) {
+    AtmCard {
+        if (rows.isEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.NotificationsNone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "No notifications captured yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            rows.forEachIndexed { index, row ->
+                var showMenu by remember(row.notification.notificationHistoryId) { mutableStateOf(false) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    com.apptimemachine.ui.components.AppIcon(packageName = row.packageName, size = 38.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(row.appName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                        Text(
+                            when {
+                                row.notification.isOtp -> "OTP received"
+                                row.notification.title != null -> row.notification.title
+                                else -> "New notification"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Text(
+                        Formatters.relativeTime(row.notification.postedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Box {
+                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "More options", modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Open app") },
+                                leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
+                                onClick = { showMenu = false; onOpenApp(row.packageName) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                                onClick = { showMenu = false; onDelete(row.notification.notificationHistoryId) }
+                            )
+                        }
+                    }
+                }
+                if (index != rows.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                }
+            }
+        }
+    }
+}
