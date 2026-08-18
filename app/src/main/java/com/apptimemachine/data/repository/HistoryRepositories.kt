@@ -23,6 +23,7 @@ class UsageRepository @Inject constructor(
     fun observeForApp(appId: Long): Flow<List<DailyUsageEntity>> = dailyUsageDao.observeForApp(appId)
     fun observeTotalUsageForDay(day: Long): Flow<Long?> = dailyUsageDao.observeTotalUsageForDay(day)
     suspend fun getForAppAndDay(appId: Long, day: Long): DailyUsageEntity? = dailyUsageDao.getForAppAndDay(appId, day)
+    suspend fun getAllForDay(day: Long): List<DailyUsageEntity> = dailyUsageDao.getAllForDay(day)
     suspend fun getMostUsedForDay(day: Long): DailyUsageEntity? = dailyUsageDao.getMostUsedForDay(day)
     suspend fun upsert(usage: DailyUsageEntity) = dailyUsageDao.upsert(usage)
 

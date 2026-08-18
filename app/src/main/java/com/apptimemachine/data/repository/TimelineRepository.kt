@@ -41,4 +41,5 @@ class TimelineRepository @Inject constructor(
 
     suspend fun deleteAll() = dao.deleteAll()
     suspend fun deleteForApp(appId: Long) = dao.deleteForApp(appId)
+    suspend fun deleteById(eventId: Long) = dao.deleteById(eventId)
 }
