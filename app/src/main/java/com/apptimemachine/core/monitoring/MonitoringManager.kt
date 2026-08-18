@@ -436,8 +436,15 @@ class MonitoringManager @Inject constructor(
             val snapshot = networkStatsReader.readUsageForUid(app.packageUid, startOfDay, now)
             if (snapshot.wifiRxBytes == null && snapshot.mobileRxBytes == null) continue
 
+            // Carry over today's existing row id (if any) so the @Upsert
+            // updates that row instead of inserting a new one — otherwise
+            // every scan cycle would add another row for the same app/day
+            // and the app would appear to "repeat" in the Network Usage list.
+            val existing = networkRepository.getForAppAndDay(app.appId, epochDay)
+
             networkRepository.insert(
                 NetworkHistoryEntity(
+                    networkHistoryId = existing?.networkHistoryId ?: 0,
                     appId = app.appId,
                     dateEpochDay = epochDay,
                     wifiRxBytes = snapshot.wifiRxBytes,

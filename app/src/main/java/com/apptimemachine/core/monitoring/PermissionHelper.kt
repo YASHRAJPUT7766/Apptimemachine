@@ -35,6 +35,21 @@ object PermissionHelper {
 
     fun notificationListenerIntent(): Intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
 
+    /**
+     * Android 13+ blocks sensitive toggles (Notification Access included)
+     * with a "Restricted setting — for your security, this setting is
+     * currently unavailable" dialog for any app installed from outside
+     * the Play Store (sideloaded via GitHub Actions APK, Aptoide, etc.).
+     * There is no programmatic way around this by design — the person has
+     * to open the app's own info screen and tap the 3-dot menu → "Allow
+     * restricted settings" once. This just takes them to that info screen
+     * so they aren't left hunting for it after the dialog appears.
+     */
+    fun appInfoIntent(context: Context): Intent =
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = android.net.Uri.parse("package:${context.packageName}")
+        }
+
     fun isIgnoringBatteryOptimizations(context: Context): Boolean {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
         return powerManager.isIgnoringBatteryOptimizations(context.packageName)
