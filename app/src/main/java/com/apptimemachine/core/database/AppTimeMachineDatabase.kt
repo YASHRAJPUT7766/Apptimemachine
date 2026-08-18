@@ -33,9 +33,10 @@ import com.apptimemachine.data.entities.*
         BookmarkEntity::class,
         SavedSearchEntity::class,
         RecentSearchEntity::class,
-        InsightEntity::class
+        InsightEntity::class,
+        BatteryUsageEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -58,9 +59,10 @@ abstract class AppTimeMachineDatabase : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun searchDao(): SearchDao
     abstract fun insightDao(): InsightDao
+    abstract fun batteryUsageDao(): BatteryUsageDao
 
     companion object {
         const val DATABASE_NAME = "app_time_machine.db"
-        const val DATABASE_VERSION_FOR_BACKUP = 1
+        const val DATABASE_VERSION_FOR_BACKUP = 2
     }
 }
