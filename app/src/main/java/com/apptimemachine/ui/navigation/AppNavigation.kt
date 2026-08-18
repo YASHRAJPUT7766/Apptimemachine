@@ -21,6 +21,7 @@ import com.apptimemachine.ui.backup.BackupScreen
 import com.apptimemachine.ui.compare.CompareScreen
 import com.apptimemachine.ui.dashboard.DashboardScreen
 import com.apptimemachine.ui.details.AppDetailsScreen
+import com.apptimemachine.ui.notifications.NotificationsScreen
 import com.apptimemachine.ui.reports.ReportsScreen
 import com.apptimemachine.ui.search.SearchScreen
 import com.apptimemachine.ui.settings.SettingsScreen
@@ -71,6 +72,7 @@ private const val ROUTE_STATISTICS = "statistics"
 private const val ROUTE_COMPARE = "compare"
 private const val ROUTE_BACKUP = "backup"
 private const val ROUTE_REPORTS = "reports"
+private const val ROUTE_NOTIFICATIONS = "notifications"
 
 @Composable
 fun AppNavigation(openTimelineOnStart: Boolean = false) {
@@ -107,23 +109,31 @@ fun AppNavigation(openTimelineOnStart: Boolean = false) {
                     onOpenSearch = { navController.navigate(ROUTE_SEARCH) },
                     onOpenStatistics = { navController.navigate(ROUTE_STATISTICS) },
                     onOpenCompare = { navController.navigate(ROUTE_COMPARE) },
-                    onOpenBackup = { navController.navigate(ROUTE_BACKUP) }
+                    onOpenBackup = { navController.navigate(ROUTE_BACKUP) },
+                    onOpenNotifications = { navController.navigate(ROUTE_NOTIFICATIONS) }
                 )
             }
             composable(TopLevelDestination.Timeline.route) {
                 TimelineScreen(
                     onOpenSearch = { navController.navigate(ROUTE_SEARCH) },
-                    onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") }
+                    onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") },
+                    onOpenNotifications = { navController.navigate(ROUTE_NOTIFICATIONS) }
                 )
             }
             composable(TopLevelDestination.Apps.route) {
                 AppsListScreen(onOpenAppDetails = { appId -> navController.navigate("app_details/$appId") })
             }
             composable(TopLevelDestination.Settings.route) {
-                SettingsScreen(onOpenReports = { navController.navigate(ROUTE_REPORTS) })
+                SettingsScreen(
+                    onOpenReports = { navController.navigate(ROUTE_REPORTS) },
+                    onOpenNotifications = { navController.navigate(ROUTE_NOTIFICATIONS) }
+                )
             }
             composable(ROUTE_REPORTS) {
                 ReportsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_NOTIFICATIONS) {
+                NotificationsScreen(onBack = { navController.popBackStack() })
             }
 
             composable(
