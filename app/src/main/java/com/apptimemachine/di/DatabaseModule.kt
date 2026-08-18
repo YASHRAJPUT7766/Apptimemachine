@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.apptimemachine.core.database.AppTimeMachineDatabase
 import com.apptimemachine.core.database.MIGRATION_1_2
+import com.apptimemachine.core.database.MIGRATION_2_3
 import com.apptimemachine.data.dao.*
 import dagger.Module
 import dagger.Provides
@@ -27,7 +28,7 @@ object DatabaseModule {
             // No fallbackToDestructiveMigration in release — Part 4.0 Database
             // Rules: "No destructive migrations in release builds." Future
             // schema bumps must add an explicit Migration() here.
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
     }
 
