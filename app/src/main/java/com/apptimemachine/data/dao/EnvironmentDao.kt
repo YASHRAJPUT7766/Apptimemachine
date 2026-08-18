@@ -5,6 +5,7 @@ import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.apptimemachine.data.entities.BatteryHistoryEntity
 import com.apptimemachine.data.entities.NetworkHistoryEntity
 import com.apptimemachine.data.entities.NotificationHistoryEntity
@@ -107,7 +108,11 @@ interface BatteryHistoryDao {
 
 @Dao
 interface NetworkHistoryDao {
-    @Insert
+    // Upsert (not plain insert): with the unique (appId, dateEpochDay)
+    // index, this updates today's existing row on every scan instead of
+    // inserting a new one each time — fixes the same app showing up
+    // repeated multiple times in the Network Usage list.
+    @Upsert
     suspend fun insert(entry: NetworkHistoryEntity): Long
 
     @Query("SELECT * FROM network_history WHERE appId = :appId ORDER BY dateEpochDay DESC")
@@ -115,6 +120,12 @@ interface NetworkHistoryDao {
 
     @Query("SELECT * FROM network_history WHERE dateEpochDay = :day")
     suspend fun getAllForDay(day: Long): List<NetworkHistoryEntity>
+
+    // Looked up before each upsert so scanNetwork() can carry over today's
+    // existing row id — an @Upsert with a fresh autoGenerate id of 0 would
+    // otherwise still insert a new row instead of updating the matching one.
+    @Query("SELECT * FROM network_history WHERE appId = :appId AND dateEpochDay = :day LIMIT 1")
+    suspend fun getForAppAndDay(appId: Long, day: Long): NetworkHistoryEntity?
 
     @Query("SELECT SUM(wifiRxBytes + wifiTxBytes) FROM network_history WHERE dateEpochDay = :day")
     fun observeWifiTotalForDay(day: Long): Flow<Long?>
