@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -20,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import com.apptimemachine.core.utils.AppLauncher
 import com.apptimemachine.core.utils.Formatters
 import com.apptimemachine.data.entities.EventCategory
 import com.apptimemachine.data.entities.EventSeverity
@@ -120,7 +124,10 @@ fun TimelineScreen(
                                 is TimelineListItem.Header -> DaySectionHeader(item.label)
                                 is TimelineListItem.Event -> TimelineEventRow(
                                     event = item.event,
-                                    onClick = { onOpenAppDetails(item.event.appId) }
+                                    onClick = { onOpenAppDetails(item.event.appId) },
+                                    onDeleteNotification = if (item.event.eventCategory == EventCategory.NOTIFICATIONS) {
+                                        { viewModel.deleteNotificationEvent(item.event) }
+                                    } else null
                                 )
                                 null -> ShimmerCard(Modifier.fillMaxWidth().height(72.dp))
                             }
@@ -151,9 +158,17 @@ private fun DaySectionHeader(label: String) {
     )
 }
 
-/** Timeline row: live app icon, name, event description, colored severity dot, relative time. Tappable to open App Details when [onClick] is provided (Timeline and App Details' own Timeline tab share this row; the tab passes no onClick since it's already inside that app's details). */
+/** Timeline row: live app icon, name, event description, colored severity dot, relative time. Tappable to open App Details when [onClick] is provided (Timeline and App Details' own Timeline tab share this row; the tab passes no onClick since it's already inside that app's details). For NOTIFICATIONS-category events, [onDeleteNotification] adds a trailing menu with "Open app" and "Delete" (delete removes it from this in-app log only — the source notification on the device, if still present, is untouched). */
 @Composable
-fun TimelineEventRow(event: TimelineEventEntity, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+fun TimelineEventRow(
+    event: TimelineEventEntity,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onDeleteNotification: (() -> Unit)? = null
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showMenu by remember(event.eventId) { mutableStateOf(false) }
+
     AtmCard(modifier = modifier, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
@@ -171,10 +186,14 @@ fun TimelineEventRow(event: TimelineEventEntity, modifier: Modifier = Modifier, 
             Column(modifier = Modifier.weight(1f)) {
                 Text(event.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 Text(
-                    event.eventType.replace('_', ' ').lowercase()
-                        .replaceFirstChar { it.uppercase() },
+                    if (event.eventCategory == EventCategory.NOTIFICATIONS && event.newValue != null) {
+                        event.newValue
+                    } else {
+                        event.eventType.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
                 )
             }
             Text(
@@ -182,6 +201,32 @@ fun TimelineEventRow(event: TimelineEventEntity, modifier: Modifier = Modifier, 
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (onDeleteNotification != null) {
+                Box {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "More options", modifier = Modifier.size(18.dp))
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Open app") },
+                            leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                AppLauncher.open(context, event.packageName)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                onDeleteNotification()
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

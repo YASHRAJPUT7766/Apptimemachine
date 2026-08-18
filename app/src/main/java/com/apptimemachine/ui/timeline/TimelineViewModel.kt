@@ -28,14 +28,16 @@ val TIMELINE_FILTER_CATEGORIES = listOf(
     EventCategory.INSTALLATION,
     EventCategory.VERSION,
     EventCategory.STORAGE,
-    EventCategory.USAGE
+    EventCategory.USAGE,
+    EventCategory.NOTIFICATIONS
 )
 
 /** Part 3.6 Timeline Engine UI state — filter selection drives which paged query is active. */
 @HiltViewModel
 class TimelineViewModel @Inject constructor(
     private val timelineRepository: TimelineRepository,
-    private val monitoringManager: MonitoringManager
+    private val monitoringManager: MonitoringManager,
+    private val notificationRepository: com.apptimemachine.data.repository.NotificationRepository
 ) : ViewModel() {
 
     private val _selectedCategory = MutableStateFlow<EventCategory?>(null)
@@ -81,5 +83,19 @@ class TimelineViewModel @Inject constructor(
 
     fun selectCategory(category: EventCategory?) {
         _selectedCategory.value = category
+    }
+
+    /**
+     * Removes a notification from the in-app log (both the lightweight
+     * Timeline row and the detailed NotificationHistoryEntity row it came
+     * from) — this only clears it from THIS app's records. It does not
+     * touch the notification on the device if it's still present in the
+     * system status bar; those are two independent things.
+     */
+    fun deleteNotificationEvent(event: TimelineEventEntity) {
+        viewModelScope.launch {
+            timelineRepository.deleteById(event.eventId)
+            notificationRepository.deleteByAppAndPostedAt(event.appId, event.createdTimestamp)
+        }
     }
 }
