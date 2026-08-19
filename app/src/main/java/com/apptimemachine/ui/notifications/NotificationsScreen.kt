@@ -48,6 +48,7 @@ import com.apptimemachine.ui.components.EmptyState
  * it, an internally scrollable card so any number of notifications fit,
  * and Open/Delete on every entry.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
     onBack: () -> Unit,
