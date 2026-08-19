@@ -23,10 +23,21 @@ sealed interface NotificationListItem {
 }
 
 /**
+ * State backing the full-detail Dialog — shared by both a tapped group AND
+ * a tapped single notification, so both open the exact same popup (just
+ * pre-populated with one row in the single case) instead of two different
+ * UIs for what is, from the person's point of view, the same action.
+ */
+data class NotificationDetailState(
+    val appName: String,
+    val packageName: String,
+    val rows: List<NotificationFeedRow>
+)
+
+/**
  * Threshold at which same-app, same-day notifications collapse into one
  * group card instead of listing every row — mirrors how a phone's own
- * notification shade groups a busy app's notifications together (Part:
- * discussed as "if WhatsApp sends 3+, show one card that expands").
+ * notification shade groups a busy app's notifications together.
  */
 private const val GROUP_THRESHOLD = 3
 
@@ -38,15 +49,14 @@ class NotificationsViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    /**
-     * Bottom sheet state: which group (if any) is currently expanded to
-     * show every individual notification inside it, in full detail.
-     */
-    private val _expandedGroup = MutableStateFlow<NotificationListItem.Group?>(null)
-    val expandedGroup: StateFlow<NotificationListItem.Group?> = _expandedGroup.asStateFlow()
+    private val _detail = MutableStateFlow<NotificationDetailState?>(null)
+    val detail: StateFlow<NotificationDetailState?> = _detail.asStateFlow()
 
-    fun openGroup(group: NotificationListItem.Group) { _expandedGroup.value = group }
-    fun closeGroup() { _expandedGroup.value = null }
+    fun openDetail(appName: String, packageName: String, rows: List<NotificationFeedRow>) {
+        _detail.value = NotificationDetailState(appName, packageName, rows)
+    }
+
+    fun closeDetail() { _detail.value = null }
 
     val items: StateFlow<List<NotificationListItem>> = notificationRepository.observeFeed(limit = 1000)
         .map { rows -> buildListItems(rows) }
@@ -76,15 +86,13 @@ class NotificationsViewModel @Inject constructor(
                     runEnd++
                 }
                 val run = dayRows.subList(index, runEnd + 1)
-                result += if (run.size >= GROUP_THRESHOLD) {
-                    NotificationListItem.Group(current.appName, current.packageName, current.iconCachePath, run)
+                if (run.size >= GROUP_THRESHOLD) {
+                    result += NotificationListItem.Group(current.appName, current.packageName, current.iconCachePath, run)
                 } else {
                     // Below threshold: emit individually rather than as a
                     // one-item group, so a single notification never renders
                     // with "group" chrome around it.
                     run.forEach { result += NotificationListItem.Single(it) }
-                    index = runEnd + 1
-                    continue
                 }
                 index = runEnd + 1
             }
@@ -104,12 +112,12 @@ class NotificationsViewModel @Inject constructor(
         }
     }
 
-    fun delete(id: Long) = viewModelScope.launch {
+    fun deleteOne(id: Long) = viewModelScope.launch {
         notificationRepository.delete(id)
     }
 
-    fun deleteGroup(rows: List<NotificationFeedRow>) = viewModelScope.launch {
+    fun deleteAll(rows: List<NotificationFeedRow>) = viewModelScope.launch {
         notificationRepository.deleteBatch(rows.map { it.notification.notificationHistoryId })
-        closeGroup()
+        closeDetail()
     }
 }

@@ -5,10 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -21,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.apptimemachine.core.utils.AppLauncher
 import com.apptimemachine.core.utils.Formatters
@@ -35,10 +40,14 @@ import com.apptimemachine.ui.components.EmptyState
  * Dedicated, full-detail Notifications screen — day-grouped, with 3+
  * same-app-same-day notifications collapsing into one tappable group card
  * (mirrors the phone's own notification shade). Reachable from Dashboard's
- * Activity > Notifications tab, Timeline's Notifications filter, and
- * Settings > General.
+ * Activity > Notifications tab, Timeline's "All" System/Notifications tabs
+ * and Notifications filter chip, and Settings > General.
+ *
+ * Tapping ANY row — a collapsed group or a single stand-alone notification
+ * — opens the same large centered detail Dialog: full-screen scrim behind
+ * it, an internally scrollable card so any number of notifications fit,
+ * and Open/Delete on every entry.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
     onBack: () -> Unit,
@@ -46,7 +55,7 @@ fun NotificationsScreen(
 ) {
     val items by viewModel.items.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val expandedGroup by viewModel.expandedGroup.collectAsState()
+    val detail by viewModel.detail.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
@@ -89,14 +98,16 @@ fun NotificationsScreen(
                     ) { item ->
                         when (item) {
                             is NotificationListItem.DayHeader -> DayHeaderRow(item.label)
+                            // Both a single notification and a group open the
+                            // same detail dialog — a single just opens it
+                            // pre-populated with its one row.
                             is NotificationListItem.Single -> NotificationRow(
                                 row = item.row,
-                                onOpenApp = { AppLauncher.open(context, item.row.packageName) },
-                                onDelete = { viewModel.delete(item.row.notification.notificationHistoryId) }
+                                onClick = { viewModel.openDetail(item.row.appName, item.row.packageName, listOf(item.row)) }
                             )
                             is NotificationListItem.Group -> NotificationGroupRow(
                                 group = item,
-                                onClick = { viewModel.openGroup(item) }
+                                onClick = { viewModel.openDetail(item.appName, item.packageName, item.rows) }
                             )
                         }
                     }
@@ -105,13 +116,13 @@ fun NotificationsScreen(
         }
     }
 
-    if (expandedGroup != null) {
-        NotificationGroupDetailSheet(
-            group = expandedGroup!!,
-            onDismiss = { viewModel.closeGroup() },
+    if (detail != null) {
+        NotificationDetailDialog(
+            detail = detail!!,
+            onDismiss = { viewModel.closeDetail() },
             onOpenApp = { pkg -> AppLauncher.open(context, pkg) },
-            onDeleteOne = { id -> viewModel.delete(id) },
-            onDeleteAll = { rows -> viewModel.deleteGroup(rows) }
+            onDeleteOne = { id -> viewModel.deleteOne(id) },
+            onDeleteAll = { rows -> viewModel.deleteAll(rows) }
         )
     }
 }
@@ -127,16 +138,10 @@ private fun DayHeaderRow(label: String) {
     )
 }
 
-/** A single notification — tap opens the source app, trailing menu offers delete. */
+/** A single, non-grouped notification — tap opens the full-detail dialog (same as a group). */
 @Composable
-private fun NotificationRow(
-    row: NotificationFeedRow,
-    onOpenApp: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var showMenu by remember(row.notification.notificationHistoryId) { mutableStateOf(false) }
-
-    AtmCard(onClick = onOpenApp) {
+private fun NotificationRow(row: NotificationFeedRow, onClick: () -> Unit) {
+    AtmCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AppIcon(packageName = row.packageName, size = 42.dp)
             Spacer(Modifier.width(12.dp))
@@ -149,35 +154,16 @@ private fun NotificationRow(
                     maxLines = 2
                 )
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    Formatters.time(row.notification.postedAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Box {
-                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Outlined.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
-                    }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Open app") },
-                            leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
-                            onClick = { showMenu = false; onOpenApp() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-                            onClick = { showMenu = false; onDelete() }
-                        )
-                    }
-                }
-            }
+            Text(
+                Formatters.time(row.notification.postedAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
-/** A collapsed same-app group ("WhatsApp • 5 notifications") — tap to expand into full detail. */
+/** A collapsed same-app group ("WhatsApp • 5 notifications") — tap opens the full-detail dialog. */
 @Composable
 private fun NotificationGroupRow(group: NotificationListItem.Group, onClick: () -> Unit) {
     AtmCard(onClick = onClick) {
@@ -219,68 +205,110 @@ private fun NotificationGroupRow(group: NotificationListItem.Group, onClick: () 
 }
 
 /**
- * Full detail for a group — every individual notification, newest first,
- * each with its own title/body (privacy-mode-aware), time, tap-to-open,
- * and delete. A "Delete all" action clears the whole group at once.
+ * Full-detail popup for both a group and a single notification — a large
+ * centered card over a dimmed full-screen scrim (Dialog, not a bottom
+ * sheet), with its own internal scroll so any number of notifications
+ * fit and the rest of the screen never needs to scroll around it. Every
+ * entry shows full title/body (privacy-mode-aware) and has its own
+ * Open/Delete actions; "Delete all" clears everything at once.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NotificationGroupDetailSheet(
-    group: NotificationListItem.Group,
+private fun NotificationDetailDialog(
+    detail: NotificationDetailState,
     onDismiss: () -> Unit,
     onOpenApp: (String) -> Unit,
     onDeleteOne: (Long) -> Unit,
     onDeleteAll: (List<NotificationFeedRow>) -> Unit
 ) {
-    // Local mutable copy so a delete removes the row from the open sheet
+    // Local mutable copy so a delete removes the row from the open dialog
     // immediately instead of waiting for the underlying Flow to catch up
     // (which would otherwise briefly show a stale, already-deleted row).
-    var remaining by remember(group) { mutableStateOf(group.rows) }
+    var remaining by remember(detail) { mutableStateOf(detail.rows) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(packageName = group.packageName, size = 40.dp)
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(group.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                // Header — stays fixed while the notification list below scrolls.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AppIcon(packageName = detail.packageName, size = 40.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(detail.appName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${remaining.size} notification${if (remaining.size == 1) "" else "s"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(18.dp))
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                if (remaining.isEmpty()) {
                     Text(
-                        "${remaining.size} notifications",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        "All notifications here were deleted.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp)
                     )
-                }
-                TextButton(onClick = {
-                    onDeleteAll(remaining)
-                }) {
-                    Icon(Icons.Outlined.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Delete all")
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-
-            if (remaining.isEmpty()) {
-                Text(
-                    "All notifications in this group were deleted.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp)
-                )
-            } else {
-                remaining.forEachIndexed { index, row ->
-                    NotificationDetailRow(
-                        row = row,
-                        onOpenApp = { onOpenApp(row.packageName) },
-                        onDelete = {
-                            onDeleteOne(row.notification.notificationHistoryId)
-                            remaining = remaining.filterNot { it.notification.notificationHistoryId == row.notification.notificationHistoryId }
+                } else {
+                    // The scrollable region: as many notifications as exist,
+                    // capped only by the outer Column's max height above —
+                    // this is what fixes the earlier bottom-sheet version
+                    // not scrolling when a group had many entries.
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Spacer(Modifier.height(4.dp))
+                        remaining.forEachIndexed { index, row ->
+                            NotificationDetailRow(
+                                row = row,
+                                onOpenApp = { onOpenApp(row.packageName) },
+                                onDelete = {
+                                    onDeleteOne(row.notification.notificationHistoryId)
+                                    remaining = remaining.filterNot { it.notification.notificationHistoryId == row.notification.notificationHistoryId }
+                                }
+                            )
+                            if (index != remaining.lastIndex) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                            }
                         }
-                    )
-                    if (index != remaining.lastIndex) {
+                        Spacer(Modifier.height(4.dp))
+                    }
+
+                    if (remaining.size > 1) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        TextButton(
+                            onClick = { onDeleteAll(remaining) },
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Outlined.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Delete all")
+                        }
                     }
                 }
             }
@@ -288,6 +316,7 @@ private fun NotificationGroupDetailSheet(
     }
 }
 
+/** One notification's full detail inside the dialog — title/body, time, Open and Delete. */
 @Composable
 private fun NotificationDetailRow(
     row: NotificationFeedRow,
@@ -295,11 +324,7 @@ private fun NotificationDetailRow(
     onDelete: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpenApp)
-            .padding(vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
         verticalAlignment = Alignment.Top
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -320,8 +345,14 @@ private fun NotificationDetailRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Outlined.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            IconButton(onClick = onOpenApp, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Outlined.OpenInNew, contentDescription = "Open app", modifier = Modifier.size(16.dp))
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Outlined.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+            }
         }
     }
 }
@@ -331,7 +362,7 @@ private fun NotificationDetailRow(
  * the notification was actually captured under — title/body are only
  * ever populated by the listener when Settings > Notification Privacy
  * Mode allowed it, and OTP-flagged notifications never carry content at
- * all (Part: OTP content is intentionally never persisted). Nothing here
+ * all (OTP content is intentionally never persisted). Nothing here
  * fabricates content that wasn't captured — a missing title/body always
  * falls back to an honest placeholder, never a guess at what it said.
  */
